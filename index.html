@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <link rel="icon" href="assets/favicon/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="64x64" href="assets/favicon/favicon-64x64.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon/apple-touch-icon.png">
+  <title>Dragonstone Quest</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- Scripts -->
+  <script defer src="js/config.js"></script>
+  <script defer src="js/state.js"></script>
+  <script defer src="js/utils.js"></script>
+  <script defer src="js/audio.js"></script>
+  <script defer src="js/ui.js"></script>
+  <script defer src="js/prompts/storyAI.js"></script>
+  <script defer src="js/prompts/scribeAI.js"></script>
+  <script defer src="js/gameController.js"></script>
+</head>
+
+<body>
+  <!-- ⚠️  API-key warning banner (hidden by default) -->
+  <div id="api-warning" class="api-warning hidden" role="alert">
+    ⚠️ &nbsp;No valid API key.&nbsp;⚠️
+  </div>
+
+  <!-- ▸ START OVERLAY =================================================== -->
+  <div id="start-overlay" class="fullscreen center" role="dialog" aria-modal="true">
+    <div class="start-content">
+      <h1>Dragonstone Quest</h1>
+      <div class="api-key-input">
+        <label for="api-key">Enter your OpenAI API Key:</label>
+        <input type="text" id="api-key" placeholder="sk-..." autocomplete="off" spellcheck="false">
+        <p class="api-key-note">Don't have an API key? <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">Get one here</a></p>
+      </div>
+      <button id="start-btn" type="button">Begin Adventure</button>
+    </div>
+  </div>
+
+  <!-- ▸ SIDE‑BAR / HUD ================================================== -->
+  <aside id="sidebar" aria-label="Heads‑up display (Party, Inventory, Notes)">
+    <section>
+      <h2>Party</h2>
+      <div id="party-wrap">
+        <div id="party-box"></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Inventory</h2>
+      <div id="inv-wrap">
+        <div id="inv-box"></div>
+      </div>
+    </section>
+
+    <!-- ▸ NOTES --------------------------------------------------------- -->
+    <section id="notes-wrap">
+      <h2>Notes
+        <!-- plus button -->
+        <button id="add-note" class="icon-btn" title="Add sticky note" type="button">＋</button>
+      </h2>
+
+      <!-- sticky notes container -->
+      <div id="notes-box"></div>
+
+      <!-- translucent loading spinner during scribe AI -->
+      <div id="notes-loader" class="hidden" aria-hidden="true">
+        <span></span><span></span><span></span><span></span>
+      </div>
+    </section>
+  </aside>
+
+  <!-- ▸ TOP‑RIGHT ACTION ICONS ========================================= -->
+  <div id="top-icons">
+    <div id="save-menu">
+      <button id="save-icon" class="icon-btn" type="button" title="Save / Load" aria-haspopup="menu"
+        aria-expanded="false" aria-controls="save-dd">💾</button>
+      <ul id="save-dd" class="hidden" role="menu" aria-label="Save options">
+        <li id="save-file" role="menuitem">Save to file…</li>
+        <li id="load-file" role="menuitem">Load from file…</li>
+      </ul>
+    </div>
+    <button id="settings-btn" class="icon-btn" type="button" title="Settings" aria-label="Open settings">⚙️</button>
+  </div>
+
+  <!-- ▸ PLAYFIELD ======================================================= -->
+  <main id="playfield">
+    <img id="background" src="assets/backgrounds/adventure-begins.png" alt="Dimly lit forest clearing with morning mist"
+      loading="lazy" decoding="async">
+
+    <!-- character sprite container (populated by JS) -->
+    <div id="characters" aria-hidden="true"></div>
+
+    <!-- narration -->
+    <p id="narration" class="glass hidden" aria-live="polite"></p>
+
+    <!-- bottom UI: dialogue + input bar -->
+    <div id="bottom-ui">
+      <div id="dialogue" class="glass hidden" aria-live="polite">
+        <span id="speaker-name"></span><span id="dialogue-text"></span>
+      </div>
+
+      <form id="input-bar" autocomplete="off" role="search">
+        <label class="visually-hidden" for="user-input">Your action</label>
+        <input id="user-input" type="text" placeholder="Your action…" required>
+        <button id="send-btn" type="button">Send</button>
+      </form>
+    </div>
+
+    <!-- END / GAME‑OVER overlay -->
+    <div id="end-overlay" class="hidden glass" role="dialog" aria-modal="true" aria-labelledby="end-title">
+      <div id="end-title">THE END</div>
+      <button id="restart" type="button">Begin a new adventure?</button>
+    </div>
+  </main>
+
+  <!-- ▸ THINKING OVERLAY =============================================== -->
+  <div id="thinking" class="hidden" role="alert" aria-live="assertive">
+    <div class="spinner" aria-hidden="true"></div>
+    <span>Thinking…</span>
+  </div>
+
+  <!-- ▸ SETTINGS MODAL ================================================= -->
+  <div id="settings-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="panel">
+      <h2 id="settings-title">Settings</h2>
+
+      <div class="setting">
+        <label for="set-volume">Volume</label>
+        <input id="set-volume" type="range" min="0" max="100" step="1">
+        <span id="val-volume" class="val">35 %</span>
+      </div>
+
+      <div class="setting">
+        <label for="set-textspeed">Text speed</label>
+        <input id="set-textspeed" type="range" min="5" max="100" step="1">
+        <span id="val-textspeed" class="val">22 ms</span>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>

@@ -235,7 +235,7 @@ Return **pure JSON** — no markdown, no extra keys.
 
 Schema {
   "party":    { Name:"Health:#" },
-  "items":    [{ name:count }],
+  "items":    [{ "name":count }],
   "dialogue": [{ "speaker": "...", "text": "...", "emotion"?: "..." }],
   "gameOver": boolean,
   "endReason": string          // required if gameOver
@@ -307,6 +307,7 @@ CHARACTER DOSSIERS
    • Dislikes   : Dogs, water, and people who think they can out-thief a thief.
    • Quirks     : Flicks her tail when agitated, purrs when content, and can't
                   resist a good game of cat-and-mouse (especially when she's the cat).
+
 ◆  Kael  —  Naive Magic College Graduate
    ───────────────────────────────────
    • Background : Freshly graduated top of his class from the Arcanum 
@@ -319,7 +320,7 @@ CHARACTER DOSSIERS
                   everyone, including obvious villains. Tends to explain things
                   at length unless stopped.
    • Speech     : Formal and precise, with a tendency to use big words when 
-                  small ones would do.
+                  small ones would do. Says "according to my research..." frequently.
    • Quirks     : Carries a heavy satchel of books everywhere. Gets excited 
                   about rare magical artifacts. Tries to take notes on 
                   everything. Has a nervous habit of adjusting his glasses.
@@ -335,8 +336,8 @@ RULES OF PLAY
 {{ ... }}
 2. The only items available to the characters are the ones specified in the *items* array; never add items without providing a reason!
 3. Always keep *party* HP & *items* accurate; list **all** shared items.
-4. Add to *notes* only if truly useful (a scribe model may overwrite later).
-5. Set \`gameOver:true\` only when **You** reach 0 HP or the Dragonstone
+4. If an item is used up, remove it from the items array. Some items (such as swords and weapons) can never be used up.
+5. Set \`gameOver:true\` only when **You** (the player) reach 0 HP or the Dragonstone
    quest concludes; explain briefly in \`endReason\`.
 6. Nyx or Kael may die without ending the game.
 7. Never speak for, or echo, the player (“You”).

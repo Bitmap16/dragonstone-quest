@@ -51,6 +51,7 @@ export const dom = {
   saveDD: $("save-dd"),
   settingsIcon: $("settings-btn"),
   textToggle: $("text-toggle"),
+  fullscreenBtn: document.getElementById('fullscreen-btn'),
 
   // Settings panel elements
   settingsModal: $("settings-modal"),
@@ -272,6 +273,7 @@ showSprite.lastSrc = "";
 
 // Dialogue and narration rendering
 export function showYou(text) {
+  document.getElementById('party-fixed')?.classList.remove('hp-off');
   dom.narration.classList.add("hidden");
   dom.dialogue.classList.remove("hidden");
   dom.spkName.textContent = "You";
@@ -281,6 +283,8 @@ export function showYou(text) {
 }
 
 export function showThem(name, text) {
+  // Bring HP bars back when characters speak
+  document.getElementById('party-fixed')?.classList.remove('hp-off');
   dom.narration.classList.add("hidden");
   dom.dialogue.classList.remove("hidden");
   dom.dialogue.classList.add("show");
@@ -291,6 +295,10 @@ export function showThem(name, text) {
 }
 
 export function showNarration(text) {
+  // Hide HP bars on small screens to avoid overlap
+  if (window.innerWidth <= 720) {
+    document.getElementById('party-fixed')?.classList.add('hp-off');
+  }
   dom.dialogue.classList.add("hidden");
   dom.narration.classList.remove("hidden");
   hideSprite();
@@ -376,7 +384,9 @@ export function updateInputDisplay() {
   const hasActions = dom.actionBtns.children.length > 0;
 
   // ── Action Buttons (primary driver) ─────────────
-  if (hasActions) {
+  // If free-text mode is ON, we deliberately hide the pregenerated buttons to
+  // avoid UI clutter (per user request). Otherwise show them when available.
+  if (hasActions && !state.freeTextUnlocked) {
     dom.actionBtns.style.display = "flex";
     dom.actionBtns.classList.remove("hidden");
     dom.actionBtns.classList.add("show");
@@ -394,8 +404,8 @@ export function updateInputDisplay() {
   });
 
   // ── Text Input Bar (mirrors buttons) ───────────
-  // Only show when buttons are showing *and* free-text mode is enabled.
-  if (textEnabled && hasActions) {
+  // Show the text input bar whenever free-text mode is enabled (or game ended)
+  if (textEnabled) {
     dom.inputBar.style.display = "flex";
     dom.inputBar.classList.add("show");
   } else {
@@ -497,8 +507,68 @@ function updateFixedParty() {
   }
 }
 
+// ── Fullscreen Button Setup ──────────────────────
+(function createFullscreen(){
+  if (!dom.fullscreenBtn) {
+    const btn = document.createElement('button');
+    btn.id = 'fullscreen-btn';
+    btn.className = 'icon-btn';
+    btn.title = 'Toggle Fullscreen';
+    btn.innerHTML = '⛶'; // simple icon glyph
+    document.getElementById('top-icons')?.appendChild(btn);
+    dom.fullscreenBtn = btn;
+  }
+  dom.fullscreenBtn?.addEventListener('click', () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen().catch(console.warn);
+    }
+  });
+})();
+
 // Sidebar toggle handler
 (function setupSidebarToggle(){
+  const moveControls = (toSidebar) => {
+    const host = toSidebar ? dom.sidebar : document.getElementById('top-icons');
+    if (!host) return;
+    let ctlWrap = document.getElementById('sidebar-controls');
+    if (toSidebar) {
+      if (!ctlWrap) {
+        ctlWrap = document.createElement('div');
+        ctlWrap.id = 'sidebar-controls';
+        dom.sidebar.appendChild(ctlWrap);
+      }
+      ctlWrap.appendChild(dom.textToggle);
+      ctlWrap.appendChild(dom.saveIcon);
+      ctlWrap.appendChild(dom.settingsIcon);
+      ctlWrap.appendChild(dom.fullscreenBtn);
+    } else if (ctlWrap) {
+      // Move back to top-icons host in desktop view
+      host.appendChild(dom.textToggle);
+      host.appendChild(dom.saveIcon);
+      host.appendChild(dom.settingsIcon);
+      host.appendChild(dom.fullscreenBtn);
+      ctlWrap.remove();
+    }
+  };
+
+  const handleViewport = () => {
+    const mobile = window.innerWidth <= 720;
+    if (mobile) {
+      dom.sidebar.classList.add("collapsed");
+      moveControls(true);
+    } else {
+      dom.sidebar.classList.remove("collapsed");
+      moveControls(false);
+    }
+    updateFixedParty();
+  };
+  // Run once on load
+  handleViewport();
+  // Listen for resize events
+  addEventListener("resize", handleViewport);
+
   if (dom.sidebar && dom.sidebarToggle) {
     
     dom.sidebarToggle.addEventListener("click", (e) => {

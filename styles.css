@@ -11,7 +11,7 @@
   --clr-accent-d:  color-mix(in srgb, var(--clr-accent) 70%, #000);
   --clr-text:      #e7ebff;
   --radius:        10px;
-  --blur:          6px;
+  --blur:          12px;
   --shadow:        0 3px 22px #0005;
 
   /* Health Colors */
@@ -202,7 +202,9 @@ body {
   box-shadow: var(--shadow);
 }
 
-#sidebar.collapsed + #party-fixed .row {
+#sidebar.collapsed + #party-fixed.hp-off { transform: translateY(-120%); transition: transform .3s ease; }
+
+#party-fixed .row {
   margin: 0.2rem 0;
   font-size: 0.8rem;
 }
@@ -1137,12 +1139,23 @@ body {
 
 /*━━━━━━━━━━━━ 14 ▸ MOBILE BREAKPOINT ━━━━━━━━━━━━*/
 @media (max-width: 720px) {
-  #sidebar { display: none; }
+  /* Keep sidebar in the DOM but start collapsed */
+  #sidebar { display: flex; }
+  /* Hide the original top-right icon row – we’ll show them inside the sidebar */
+  #top-icons { display: none; }
   #playfield { flex-basis: 100%; }
   #input-bar, #dialogue, #narration { width: 85%; }
   #thinking { left: 0; width: 100%; }
-  #top-icons { right: 6px; top: 8px; }
   #settings-modal .panel { width: 98vw; }
+}
+
+/* Sidebar controls container (appears at bottom in mobile view) */
+#sidebar-controls {
+  display: flex;
+  gap: 0.8rem;
+  margin-top: auto;           /* push to bottom */
+  padding-top: 0.8rem;
+  border-top: 1px solid rgba(255,255,255,0.08);
 }
 
 /*━━━━━━━━━━━━ 15 ▸ REDUCED MOTION ━━━━━━━━━━━━*/

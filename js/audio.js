@@ -110,6 +110,17 @@ function updateMediaSession(src) {
 
 // Display toast notification with current song
 function showTrackToast(src) {
+  // If the start overlay or thinking overlay is still visible, defer showing the toast
+  const startOverlay = document.getElementById('start-overlay');
+  const thinkingOverlay = document.getElementById('thinking');
+  const overlaysActive = (startOverlay && startOverlay.style.display !== 'none' && !startOverlay.classList.contains('hidden')) ||
+                         (thinkingOverlay && thinkingOverlay.classList.contains('visible'));
+  if (overlaysActive) {
+    // Try again shortly until overlays are gone
+    clearTimeout(showTrackToast._defer);
+    showTrackToast._defer = setTimeout(() => showTrackToast(src), 500);
+    return;
+  }
   updateMediaSession(src);
   const toast = document.getElementById('toast');
   if (!toast) return;

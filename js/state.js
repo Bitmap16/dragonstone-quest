@@ -20,13 +20,13 @@ const state = {
   // Game flow flags
   gameEnded: false,
   scribeBusy: false,   // lock notes while summarizer runs
-  freeTextUnlocked: true // Free text input enabled by default
+  freeTextUnlocked: false // Free text input disabled by default
 };
 
 // Initialize audio tracks (two Audio objects for crossfade music)
 state.activeAudio = new Audio();
 state.idleAudio = new Audio();
-state.activeAudio.loop = state.idleAudio.loop = true;
+state.activeAudio.loop = state.idleAudio.loop = false;
 
 // Hidden file input for save/load
 const fileInput = Object.assign(document.createElement("input"), {

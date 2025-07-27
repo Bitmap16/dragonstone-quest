@@ -4,8 +4,9 @@
  *  - Returns the full updated `notes` array or falls back to prevNotes
  * ────────────────────────────────────────────────────────────────*/
 
+
 /* 1 ▸ Human-readable system prompt  ───────────────────────────── */
-const SCRIBE_PROMPT = `
+export const SCRIBE_PROMPT = `
 You are the Scribe AI for a text-only fantasy RPG. Your job is to maintain a concise, focused record of only the most important story developments, character changes, and key information.
 
 ──────────────── FORMAT ────────────────
@@ -85,7 +86,7 @@ That is all. Output only the JSON object.
 `;
 
 /* 2 ▸ Summariser function  ───────────────────────────────────── */
-async function summarizerAI(dialogueLines, prevNotes, attempt = 0) {
+export async function summarizerAI(dialogueLines, prevNotes, attempt = 0) {
   /* Build messages */
   const promptMessages = [
     { role: "system", content: SCRIBE_PROMPT },

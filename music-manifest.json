@@ -1,0 +1,101 @@
+{
+  "narrative/bittersweet": [
+    "narrative/bittersweet/If Only the Stars Waited.mp3",
+    "narrative/bittersweet/Last Fire Before the Snow.mp3",
+    "narrative/bittersweet/Leaves We Cannot Hold.mp3",
+    "narrative/bittersweet/The Smile That Stayed.mp3"
+  ],
+  "narrative/beginning of adventure": [
+    "narrative/beginning of adventure/Boots in the Dew.mp3",
+    "narrative/beginning of adventure/Campfire Oath.mp3",
+    "narrative/beginning of adventure/First Light Over Farwatch.mp3",
+    "narrative/beginning of adventure/Golden Skies.mp3",
+    "narrative/beginning of adventure/One Step From Home.mp3",
+    "narrative/beginning of adventure/The Road Yet Named.mp3"
+  ],
+  "narrative/foreboding": [
+    "narrative/foreboding/Beneath Hollow Hills.mp3",
+    "narrative/foreboding/Something Watches.mp3",
+    "narrative/foreboding/The Breath Below.mp3",
+    "narrative/foreboding/When the Trees Go Silent.mp3"
+  ],
+  "narrative/moral": [
+    "narrative/moral/In the Eye of the Crown.mp3",
+    "narrative/moral/Judgment's End.mp3",
+    "narrative/moral/Of Chains and Choices.mp3",
+    "narrative/moral/The Cost of Mercy.mp3"
+  ],
+  "narrative/mystical": [
+    "narrative/mystical/Glimmer of the Deepwood.mp3",
+    "narrative/mystical/Moonlight on the Veil.mp3",
+    "narrative/mystical/The Stars Speak in Riddles.mp3",
+    "narrative/mystical/Touched by the Old Blood.mp3"
+  ],
+  "narrative/tension": [
+    "narrative/tension/Edges of the Pact.mp3",
+    "narrative/tension/It Waits Between Us.mp3",
+    "narrative/tension/No Way Forward.mp3",
+    "narrative/tension/Threads Pulled Tight.mp3"
+  ],
+  "actionable/cunning": [
+    "actionable/cunning/Blades in the Ledger.mp3",
+    "actionable/cunning/Cunning!.mp3",
+    "actionable/cunning/Ink and Illusion.mp3",
+    "actionable/cunning/Whispers Beneath the Cloak.mp3"
+  ],
+  "actionable/dangerous": [
+    "actionable/dangerous/Ash on the Wind.mp3",
+    "actionable/dangerous/Eyes That Burn.mp3",
+    "actionable/dangerous/Hunter's Breath.mp3",
+    "actionable/dangerous/No Gods, No Graves.mp3"
+  ],
+  "actionable/heroic": [
+    "actionable/heroic/Bannerlight Rising.mp3",
+    "actionable/heroic/Oathcarver.mp3",
+    "actionable/heroic/Steel Without Fear.mp3",
+    "actionable/heroic/To Stand Alone.mp3"
+  ],
+  "actionable/persuasive": [
+    "actionable/persuasive/Echoes in the Hall.mp3",
+    "actionable/persuasive/Manipulative.mp3",
+    "actionable/persuasive/Silver Lies.mp3",
+    "actionable/persuasive/The Gilded Tongue.mp3",
+    "actionable/persuasive/Velvet Command.mp3"
+  ],
+  "actionable/playful": [
+    "actionable/playful/Dagger and Dance.mp3",
+    "actionable/playful/The Bard's Last Coin.mp3",
+    "actionable/playful/Three Goblets In.mp3",
+    "actionable/playful/Trouble Is a Friend of Mine.mp3"
+  ],
+  "dramatic/angry": [
+    "dramatic/angry/Storm Without Mercy.mp3",
+    "dramatic/angry/The Unforgiven Flame.mp3",
+    "dramatic/angry/Torn Banner, Broken Oath.mp3",
+    "dramatic/angry/Wrath from Stone.mp3"
+  ],
+  "dramatic/conflicted": [
+    "dramatic/conflicted/Between the Arrows.mp3",
+    "dramatic/conflicted/One Truth, Two Lies.mp3",
+    "dramatic/conflicted/Shadow at the Mirror.mp3",
+    "dramatic/conflicted/Split Like Steel.mp3"
+  ],
+  "dramatic/intimate": [
+    "dramatic/intimate/Lanternlight in Your Eyes.mp3",
+    "dramatic/intimate/Quiet Between Heartbeats.mp3",
+    "dramatic/intimate/Soft Is the Blade That Loves.mp3",
+    "dramatic/intimate/When You Touched the Flame.mp3"
+  ],
+  "dramatic/unstable": [
+    "dramatic/unstable/Fractured Pulse.mp3",
+    "dramatic/unstable/Laughter in the Silence.mp3",
+    "dramatic/unstable/The Spiral Calls.mp3",
+    "dramatic/unstable/Threads Unravel.mp3"
+  ],
+  "dramatic/wounded": [
+    "dramatic/wounded/Griefsong.mp3",
+    "dramatic/wounded/Salt and Smoke.mp3",
+    "dramatic/wounded/The Weight You Left.mp3",
+    "dramatic/wounded/What Remains of Me.mp3"
+  ]
+}

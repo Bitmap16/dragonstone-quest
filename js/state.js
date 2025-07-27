@@ -6,7 +6,7 @@ const state = {
 
   // Default party and inventory
   party: { You: "Health:100", Nyx: "Health:100", Kael: "Health:100" },
-  items: [ { sword: 1 }, { torch: 3 } ],
+  items: JSON.parse(JSON.stringify(CONFIG.START_ITEMS)), // deep copy
 
   // Turn history and current mood
   history: [],
@@ -19,7 +19,8 @@ const state = {
 
   // Game flow flags
   gameEnded: false,
-  scribeBusy: false    // lock notes while summarizer runs
+  scribeBusy: false,   // lock notes while summarizer runs
+  freeTextUnlocked: true // Free text input enabled by default
 };
 
 // Initialize audio tracks (two Audio objects for crossfade music)

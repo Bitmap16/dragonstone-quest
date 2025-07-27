@@ -1,10 +1,10 @@
 // UI handler: DOM caching, rendering, and event bindings
 
 // DOM element shorthand
-const $ = id => document.getElementById(id);
+export const $ = id => document.getElementById(id);
 
 // Cache important DOM elements
-const dom = {
+export const dom = {
   // Stage & dialogue elements
   stage: $("characters"),
   sprite: $("speaker-sprite") || (() => {
@@ -23,7 +23,13 @@ const dom = {
   inputBar: $("input-bar"),
   userIn: $("user-input"),
   sendBtn: $("send-btn"),
+  actionBtns: $("action-buttons"),
   thinking: $("thinking"),
+
+  // Sidebar element
+  sidebar: $("sidebar"),
+  sidebarToggle: $("sidebar-toggle"),
+  partyFixed: $("party-fixed"),
 
   // Sidebar boxes
   partyBox: $("party-box"),
@@ -44,6 +50,7 @@ const dom = {
   saveIcon: $("save-icon"),
   saveDD: $("save-dd"),
   settingsIcon: $("settings-btn"),
+  textToggle: $("text-toggle"),
 
   // Settings panel elements
   settingsModal: $("settings-modal"),
@@ -68,8 +75,13 @@ function isOverlayActive() {
 
 // Check if notes are editable (no overlays and game running)
 function canEditNotes() {
-  const inputVisible = dom.inputBar && dom.inputBar.style.display !== "none";
-  return inputVisible && !state.gameEnded && !state.scribeBusy && !isOverlayActive();
+  // Notes can be edited as long as the game is running, the scribe isn't busy,
+  // and no overlay (start, end, settings, thinking) is active.
+  const awaitingPlayer = (
+    (dom.actionBtns && !dom.actionBtns.classList.contains("hidden")) ||
+    (dom.inputBar && dom.inputBar.style.display !== "none")
+  );
+  return awaitingPlayer && !state.gameEnded && !state.scribeBusy && !isOverlayActive();
 }
 
 // Save or delete note on blur (stop editing)
@@ -93,7 +105,7 @@ function noteKeyHandler(e) {
 }
 
 // Render the HUD (Party, Inventory, Notes sections) based on current state
-function renderHUD() {
+export function renderHUD() {
   // Party heading shows live count
   const partyCount = Object.keys(state.party).length;
   document.querySelector("#sidebar h2:nth-of-type(1)").textContent = `Party (${partyCount})`;
@@ -167,6 +179,7 @@ function renderHUD() {
   updateNoteShadows();
   updateInvShadows();
   updatePartyShadows();
+  updateFixedParty();
 }
 
 // Functions to update scroll shadow visibility for notes, inventory, party
@@ -187,7 +200,7 @@ dom.invBox?.addEventListener("scroll", updateInvShadows);
 dom.partyBox?.addEventListener("scroll", updatePartyShadows);
 
 // Sprite visibility control
-function hideSprite() {
+export function hideSprite() {
   dom.sprite.classList.remove("show");
 }
 dom.sprite.addEventListener("error", () => {
@@ -198,7 +211,7 @@ dom.sprite.addEventListener("error", () => {
   showSprite.lastSrc = "";
 });
 
-function showSprite(name = "", spritePath = "") {
+export function showSprite(name = "", spritePath = "") {
   // If no sprite path is provided, use a default neutral expression
   if (!spritePath) {
     const charName = name.toLowerCase();
@@ -250,25 +263,56 @@ function showSprite(name = "", spritePath = "") {
 showSprite.lastSpeaker = "";
 showSprite.lastSrc = "";
 
+// Dialogue and narration rendering
+export function showYou(text) {
+  dom.narration.classList.add("hidden");
+  dom.dialogue.classList.remove("hidden");
+  dom.spkName.textContent = "You";
+  setNameColor("You");
+  hideSprite();
+  dom.dlgText.textContent = text;
+}
+
+export function showThem(name, text) {
+  dom.narration.classList.add("hidden");
+  dom.dialogue.classList.remove("hidden");
+  dom.dialogue.classList.add("show");
+  dom.spkName.textContent = name;
+  setNameColor(name);
+  // showSprite() is handled separately
+  return typer(text, dom.dlgText);
+}
+
+export function showNarration(text) {
+  dom.dialogue.classList.add("hidden");
+  dom.narration.classList.remove("hidden");
+  hideSprite();
+  return typer(text, dom.narration);
+}
+
+
+
 // Typing effect for dialogue text
-let isMouseDown = false;
+export let isMouseDown = false;
 addEventListener("mousedown", () => { isMouseDown = true; });
 addEventListener("mouseup", () => { isMouseDown = false; });
 
-const typer = (txt, el, speed = CONFIG.TEXT_SPEED, boost = CONFIG.TEXT_BOOST) => {
+export const typer = (txt, el, speed = CONFIG.TEXT_SPEED, boost = CONFIG.TEXT_BOOST) => {
   return new Promise(resolve => {
     el.textContent = "";
     let i = 0;
     let last = performance.now();
     const step = now => {
-      const interval = (CONFIG.FAST_FORWARD_HOLD && isMouseDown) ? speed / boost : speed;
-      if (now - last >= interval) {
-        el.textContent += txt.charAt(i++);
+      if (now - last >= speed) {
+        const charsPerFrame = (CONFIG.FAST_FORWARD_HOLD && isMouseDown) ? Math.ceil(boost / 2) : 1;
+        el.textContent += txt.substring(i, i + charsPerFrame);
+        i += charsPerFrame;
         last = now;
       }
       if (i < txt.length) {
         requestAnimationFrame(step);
       } else {
+        el.textContent = txt; // Ensure the full text is displayed
         resolve();
       }
     };
@@ -277,7 +321,7 @@ const typer = (txt, el, speed = CONFIG.TEXT_SPEED, boost = CONFIG.TEXT_BOOST) =>
 };
 
 // Await user interaction (click or Enter key) to continue
-function waitClick() {
+export function waitClick() {
   return new Promise(res => {
     function finish(e) {
       if (isOverlayActive()) return;
@@ -305,15 +349,70 @@ function waitClick() {
 }
 
 // Show or hide the global "Thinking..." overlay
-function thinking(on) {
+export function thinking(on) {
   dom.thinking.style.display = on ? "flex" : "none";
   dom.thinking.classList.toggle("visible", on);
-  dom.inputBar.style.display = on ? "none" : "flex";
+  // Hide both input forms when thinking
+  if (on) {
+    dom.inputBar.style.display = "none";
+    dom.actionBtns.classList.add("hidden");
+  } else {
+    // After thinking, decide which input to show based on game state
+    updateInputDisplay();
+  }
   renderHUD();
 }
 
+// Decide whether to show action buttons or the free-text input
+export function updateInputDisplay() {
+  const textEnabled = state.freeTextUnlocked || state.gameEnded;
+  const hasActions = dom.actionBtns.children.length > 0;
+
+  // ── Action Buttons (primary driver) ─────────────
+  if (hasActions) {
+    dom.actionBtns.style.display = "flex";
+    dom.actionBtns.classList.remove("hidden");
+    dom.actionBtns.classList.add("show");
+  } else {
+    dom.actionBtns.style.display = "none";
+    dom.actionBtns.classList.add("hidden");
+    dom.actionBtns.classList.remove("show");
+  }
+
+  // ── Text Input Bar (mirrors buttons) ───────────
+  // Only show when buttons are showing *and* free-text mode is enabled.
+  if (textEnabled && hasActions) {
+    dom.inputBar.style.display = "flex";
+    dom.inputBar.classList.add("show");
+  } else {
+    dom.inputBar.style.display = "none";
+    dom.inputBar.classList.remove("show");
+  }
+}
+
+// Populate and show the action buttons
+export function showActionButtons(actions, onAction) {
+  // Clear previous buttons
+  dom.actionBtns.innerHTML = '';
+  // Create and append new buttons
+  actions.forEach(actionText => {
+    const btn = document.createElement('button');
+    btn.className = 'action-btn';
+    btn.textContent = actionText;
+    btn.onclick = () => {
+      onAction(actionText); // Call the provided callback
+      dom.actionBtns.classList.add('hidden'); // Hide after click
+    };
+    dom.actionBtns.appendChild(btn);
+  });
+  // Show the action buttons with animation
+  dom.actionBtns.classList.remove('hidden');
+  dom.actionBtns.classList.add('show');
+  updateInputDisplay();
+}
+
 // Set the speaker name color based on character
-function setNameColor(name) {
+export function setNameColor(name) {
   if (name === "You") {
     dom.spkName.style.color = "#7cff7c";
   } else if (name === "Nyx") {
@@ -329,20 +428,21 @@ function setNameColor(name) {
 }
 
 // Show or hide the notes spinner in HUD
-function notesThinking(on) {
+export function notesThinking(on) {
   dom.notesLoader.classList.toggle("hidden", !on);
 }
 
 // Input handlers for sending actions
-function bindInputHandlers() {
-  dom.sendBtn.onclick = () => {
+export function bindInputHandlers(onSend) {
+  const handleSend = () => {
     if (state.gameEnded) return;
     const userText = dom.userIn.value.trim();
     if (userText) {
-      chat(userText);
+      onSend(userText);
       dom.userIn.value = "";
     }
   };
+  dom.sendBtn.onclick = handleSend;
   dom.userIn.onkeydown = e => {
     if (state.gameEnded) {
       e.preventDefault();
@@ -351,7 +451,7 @@ function bindInputHandlers() {
     if (e.key === "Enter") {
       const userText = dom.userIn.value.trim();
       if (userText) {
-        dom.sendBtn.click();
+        handleSend();
       } else {
         e.preventDefault();
       }
@@ -368,6 +468,50 @@ dom.addNoteBtn.onclick = () => {
   const newNoteElem = dom.notesBox.lastElementChild;
   if (newNoteElem) newNoteElem.focus();
 };
+
+// Helper: sync party HUD into fixed container when sidebar collapsed
+function updateFixedParty() {
+  if (!dom.partyFixed) return;
+  const collapsed = dom.sidebar.classList.contains("collapsed");
+  dom.partyFixed.classList.toggle("hidden", !collapsed);
+  if (collapsed) {
+    // Clone party list HTML (inside #party-wrap)
+    const wrap = document.getElementById("party-wrap");
+    if (wrap) dom.partyFixed.innerHTML = wrap.innerHTML;
+  } else {
+    dom.partyFixed.innerHTML = "";
+  }
+}
+
+// Sidebar toggle handler
+(function setupSidebarToggle(){
+  if (dom.sidebar && dom.sidebarToggle) {
+    
+    dom.sidebarToggle.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const collapsed = dom.sidebar.classList.toggle("collapsed");
+            updateFixedParty();
+      // Force reflow for smooth animation
+      void dom.sidebar.offsetWidth;
+    });
+  }
+})();
+
+// Text input toggle handler
+(function setupTextToggle(){
+  if (dom.textToggle) {
+    // Initialize toggle visual and input display based on saved state
+    dom.textToggle.classList.toggle("active", state.freeTextUnlocked);
+    updateInputDisplay();
+    dom.textToggle.addEventListener("click", e => {
+      e.stopPropagation();
+      state.freeTextUnlocked = !state.freeTextUnlocked;
+      dom.textToggle.classList.toggle("active", state.freeTextUnlocked);
+      updateInputDisplay();
+    });
+  }
+})();
 
 // Settings panel interactions
 (function setupSettingsPanel() {

@@ -2,11 +2,13 @@
 const CONFIG = {
   /* OpenAI API settings */
   OPENAI_API_KEY: 
-//"",
+/* Hardcoded API key (DO NOT POST)*/
 "",
 
   MODEL: "gpt-4o-mini",
   SCRIBE_MODEL: "gpt-4o-mini",
+  SETTING_MODEL: "gpt-4o-mini",
+  ACTION_MODEL: "gpt-3.5-turbo",
 
   /* Gameplay settings */
   MAX_LOGS: 15,        // turns kept in history
@@ -16,12 +18,15 @@ const CONFIG = {
 
   /* Typing effect */
   TEXT_SPEED: 22,  // ms per char (normal)
-  TEXT_BOOST: 8,   // speed-up divisor while mouse is held
+  TEXT_BOOST: 15,   // speed-up divisor while mouse is held
 
   /* Audio & fade timings */
   FADE_MS: 5000,
   STEP_MS: 50,
   USER_VOLUME: 0.35,
+
+  /* Starting inventory */
+  START_ITEMS: [ { "Short Sword": 1 }, { "Lockpick Set": 1 }, { "Gold Coin": 15 } ],
 
   /* Initial prompt text */
   INITIAL_PROMPT: `
@@ -47,27 +52,4 @@ const CONFIG = {
     "A hidden trap is triggered unexpectedly.",
     "A magical anomaly disrupts your progress."
   ]
-};
-
-const MOOD_TRACKS = {
-  "Adventure Begins": 4,
-  "Serene": 4,
-  "Battlefield": 2,
-  "Arcane": 2,
-  "Cold Rain": 2,
-  "Haunted": 2,
-  "Surreal": 2,
-  "Eerie Silence": 4,
-  "Infernal": 2,
-  "Frozen Stillness": 2,
-  "City Square": 3,
-  "Carnival": 2,
-  "Midnight": 2,
-  "Melancholy": 2,
-  "Festival": 2,
-  "Negotiation": 2,
-  "Climax": 2,
-  "Player Says Nonsense": 2,
-  "In The Room With The Dragonstone": 2,
-  "Meltdown": 0    // special mood with no music
 };

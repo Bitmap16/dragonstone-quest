@@ -33,5 +33,18 @@ const pastel = s => {
 const expSrc = (sp, emo = "neutral") =>
   `assets/expressions/${sp.toLowerCase()}/${emo}.png`;
 
-const moodSlug = m =>
-  m.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+/**
+ * Convert a setting or mood name to a URL-friendly slug
+ * @param {string} m - The input string to convert
+ * @returns {string} URL-friendly slug
+ */
+const moodSlug = m => {
+  if (!m) return 'default';
+  return m
+    .toLowerCase()
+    .replace(/[^a-z0-9\-\s]+/g, '') // Remove special chars except hyphens and spaces
+    .trim()
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with a single one
+    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+};

@@ -1,0 +1,13 @@
+{
+  "name": "dragonstone-quest",
+  "version": "1.0.1",
+  "description": "A text-based RPG game with dynamic music and storytelling",
+  "scripts": {
+    "generate-music-manifest": "node scripts/generate-music-manifest.js",
+    "build": "npm run generate-music-manifest",
+    "start": "npx serve ."
+  },
+  "devDependencies": {
+    "serve": "^14.2.0"
+  }
+}

@@ -1,3 +1,5 @@
+import { thinking } from '../ui.js';
+
 // Story AI prompt module (main game AI interactions)
 let offlineIntroServed = false;
 
@@ -5,7 +7,8 @@ let offlineIntroServed = false;
  * Send a chat completion request to OpenAI (with offline fallback).
  * Shows/hides the global "Thinking..." overlay appropriately.
  */
-async function askAI(messages = []) {
+export async function askAI(messages = [], options = {}) {
+  const { model = CONFIG.MODEL } = options;
   // Show "Thinking..." overlay
   thinking(true);
 
@@ -107,56 +110,115 @@ async function askAI(messages = []) {
   return done(payload);
 }
 
-  // Real API call to OpenAI
+  // Real API call to OpenAI - with rate limiting and error handling
   try {
+    // Add rate limiting - don't make more than 1 request per second
+    const now = Date.now();
+    const timeSinceLastCall = now - (window._lastApiCallTime || 0);
+    if (timeSinceLastCall < 1000) {  // 1 second between calls
+      await new Promise(r => setTimeout(r, 1000 - timeSinceLastCall));
+    }
+    
     const headers = {
       "Content-Type": "application/json",
       "Authorization": "Bearer " + CONFIG.OPENAI_API_KEY
     };
     
+    console.log("[OPENAI] Sending request to API");
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: headers,
       body: JSON.stringify({
-        model: CONFIG.MODEL,
+        model: model,
         temperature: 0.9,
+        max_tokens: 1000,
         messages
       })
     });
+    
+    window._lastApiCallTime = Date.now();
+    
     if (!response.ok) {
-      console.warn(`[OPENAI] ${response.status} – using offline fallback`);
-      await new Promise(r => setTimeout(r, 400));
-      const payload = offlineIntroServed ? offlineMeltdown : offlineIntro;
-      offlineIntroServed = true;
-      return done(payload);
+      const errorText = await response.text();
+      console.warn(`[OPENAI] ${response.status} - ${response.statusText}`, errorText);
+      throw new Error(`API Error: ${response.status} - ${response.statusText}`);
     }
+    
     const data = await response.json();
-    return done(data.choices?.[0]?.message?.content ?? "");
+    const content = data.choices?.[0]?.message?.content;
+    
+    if (!content) {
+      console.warn("[OPENAI] No content in response:", data);
+      throw new Error("No content in API response");
+    }
+    
+    console.log("[OPENAI] Received valid response");
+    return done(content);
+    
   } catch (err) {
-    console.error("[OPENAI] fetch failed:", err);
-    await new Promise(r => setTimeout(r, 400));
+    console.error("[OPENAI] API call failed:", err);
+    
+    // If we get rate limited, wait longer before retrying
+    if (err.message.includes('429') || err.message.includes('rate limit')) {
+      console.warn("[OPENAI] Rate limited, waiting 5 seconds...");
+      await new Promise(r => setTimeout(r, 5000));
+    } else {
+      // For other errors, wait a shorter time
+      await new Promise(r => setTimeout(r, 1000));
+    }
+    
+    // If we've already shown the intro, show the meltdown
+    // Otherwise show the intro and mark it as shown
     const payload = offlineIntroServed ? offlineMeltdown : offlineIntro;
     offlineIntroServed = true;
+    
     return done(payload);
   }
 }
 
 // Safe JSON parsing of AI response (handles ```json``` fences, etc.)
-function safeParse(str) {
-  try {
-    return JSON.parse(str);
-  } catch {}
-  const match = str.match(/```(?:json)?\s*([\s\S]*?)```/i) || str.match(/({[\s\S]*})/);
-  if (match) {
-    try {
-      return JSON.parse(match[1]);
-    } catch {}
+export function safeParse(str) {
+  if (!str || typeof str !== 'string') {
+    console.warn('[safeParse] Invalid input:', str);
+    return null;
   }
+
+  // First try direct JSON parse
+  try {
+    const result = JSON.parse(str);
+    if (result && typeof result === 'object') {
+      return result;
+    }
+  } catch (e) {
+    // Continue to other parsing methods
+  }
+
+  // Try to extract JSON from code blocks
+  const codeBlockMatch = str.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (codeBlockMatch) {
+    try {
+      return JSON.parse(codeBlockMatch[1].trim());
+    } catch (e) {
+      console.warn('[safeParse] Failed to parse code block JSON:', e);
+    }
+  }
+
+  // Try to find a JSON object in the string
+  const jsonMatch = str.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    try {
+      return JSON.parse(jsonMatch[0]);
+    } catch (e) {
+      console.warn('[safeParse] Failed to parse JSON from string:', e);
+    }
+  }
+
+  console.warn('[safeParse] No valid JSON found in string');
   return null;
 }
 
 // Maybe inject a random event prompt into the message list
-function maybeInjectEvent(msgList) {
+export function maybeInjectEvent(msgList) {
   if (Math.random() < CONFIG.EVENT_CHANCE) {
     const events = CONFIG.EVENTS;
     const randomEvent = events[Math.floor(Math.random() * events.length)];
@@ -165,7 +227,7 @@ function maybeInjectEvent(msgList) {
 }
 
 // System role content defining the game behavior (Dungeon Master instructions)
-const SYS = `
+export const SYS = `
 You are the Dungeon Master of a solo, text-only fantasy RPG. Your primary goal is to facilitate the player's story, not to enforce a rigid narrative. Follow the player's lead and let them shape the story.
 
 ⟐  RESPONSE FORMAT  ⟐
@@ -175,7 +237,6 @@ Schema {
   "party":    { Name:"Health:#" },
   "items":    [{ name:count }],
   "dialogue": [{ "speaker": "...", "text": "...", "emotion"?: "..." }],
-  "mood":     string,
   "gameOver": boolean,
   "endReason": string          // required if gameOver
 }
@@ -189,7 +250,6 @@ Schema {
     { "speaker":"Nyx", "text":"Bright light shows shiny paths, yes?","emotion":"assets/expressions/nyx/mischievous.png" },
     { "speaker":"Kael","text":"As the constellations decree, we begin.","emotion":"assets/expressions/kael/sad.png" }
   ],
-  "mood": "Serene",
   "gameOver": false
 }
 
@@ -213,13 +273,7 @@ Always include the full path to the sprite in the 'emotion' field, for example:
 - "emotion": "assets/expressions/kael/surprised.png"
 
 Available Emotions:
-- angry, bored, curious, excited, happy, mischievous, neutral, sad, shocked, smug, thinking, wink, pain
-
-Moods:
-"Adventure Begins","Arcane","Battlefield","Carnival","City Square","Climax",
-"Cold Rain","Eerie Silence","Festival","Frozen Stillness","Haunted","Infernal",
-"Melancholy","Midnight","Negotiation","Player Says Nonsense","Serene","Surreal",
-"In The Room With The Dragonstone"
+- angry, bored, curious, excited, happy, mischievous, neutral, pain, sad, shocked, smug
 
 ──────────────────────────
 CHARACTER DOSSIERS
@@ -265,8 +319,7 @@ CHARACTER DOSSIERS
                   everyone, including obvious villains. Tends to explain things
                   at length unless stopped.
    • Speech     : Formal and precise, with a tendency to use big words when 
-                  small ones would do. Often starts sentences with "According to
-                  my studies..."
+                  small ones would do.
    • Quirks     : Carries a heavy satchel of books everywhere. Gets excited 
                   about rare magical artifacts. Tries to take notes on 
                   everything. Has a nervous habit of adjusting his glasses.
@@ -280,21 +333,19 @@ RULES OF PLAY
 ──────────────────────────
 1. Begin every reply with a DM narration line that pushes the plot forward.
 {{ ... }}
+2. The only items available to the characters are the ones specified in the *items* array; never add items without providing a reason!
 3. Always keep *party* HP & *items* accurate; list **all** shared items.
 4. Add to *notes* only if truly useful (a scribe model may overwrite later).
-5. Pick exactly one *mood* per reply; change only when the scene truly shifts.
-6. Set \`gameOver:true\` only when **You** reach 0 HP or the Dragonstone
+5. Set \`gameOver:true\` only when **You** reach 0 HP or the Dragonstone
    quest concludes; explain briefly in \`endReason\`.
-7. Nyx or Kael may die without ending the game.
-8. Never speak for, or echo, the player (“You”).
-9. Keep strictly medieval-fantasy — no modern technology.
-10. NO RIDDLES.  Riddles suck.
-11. Inject humour — crass jokes welcome if setting allows.
-12. If the player references non-fantasy concepts, adapt them into the fantasy setting rather than breaking character.
-13. When physically near the Dragonstone set mood to
-    "In The Room With The Dragonstone".
-14. ROMANCE & RELATIONSHIPS: If the player flirts with or shows romantic interest in a character, embrace it! Develop the relationship naturally based on the character's personality. Nyx might be flirty and playful, while Kael might be more reserved and formal.
-15. PLAYER AGENCY: The player's choices shape the story. If they want to pursue a romantic subplot, focus on that. If they want to explore side stories, let them. The main quest can wait.
-16. CHARACTER CONSISTENCY: Keep characters true to their personalities, but allow them to grow and change based on interactions with the player.
-17. PACING: Don't rush the story. Let scenes breathe and relationships develop naturally.
+6. Nyx or Kael may die without ending the game.
+7. Never speak for, or echo, the player (“You”).
+8. Keep strictly medieval-fantasy — no modern technology.
+9. NO RIDDLES.  Riddles suck.
+10. Inject humour — crass jokes welcome if setting allows.
+11. If the player references non-fantasy concepts, adapt them into the fantasy setting rather than breaking character.
+12. ROMANCE & RELATIONSHIPS: If the player flirts with or shows romantic interest in a character, embrace it! Develop the relationship naturally based on the character's personality. Nyx might be flirty and playful, while Kael might be more reserved and formal.
+13. PLAYER AGENCY: The player's choices shape the story. If they want to pursue a romantic subplot, focus on that. If they want to explore side stories, let them. The main quest can wait.
+14. CHARACTER CONSISTENCY: Keep characters true to their personalities, but allow them to grow and change based on interactions with the player.
+15. PACING: Don't rush the story. Let scenes breathe and relationships develop naturally.
 `;

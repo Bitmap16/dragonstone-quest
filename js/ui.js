@@ -133,6 +133,13 @@ export function renderHUD() {
       row.innerHTML = `
         <span class="${glow}">${itemName} × ${count}</span>
         <button class="use-btn" data-item="${itemName}">Use</button>`;
+      // Attach click handler to trigger a use action via global dispatcher
+      const btn = row.querySelector('.use-btn');
+      btn.onclick = () => {
+        if (typeof window.dispatchUseAction === 'function') {
+          window.dispatchUseAction(`Use ${itemName}`);
+        }
+      };
       return row;
     })
   );
@@ -378,6 +385,13 @@ export function updateInputDisplay() {
     dom.actionBtns.classList.add("hidden");
     dom.actionBtns.classList.remove("show");
   }
+
+  // ── Inventory Use Buttons ─────────────────────
+  // Show or hide inventory 'Use' buttons in sync with action availability
+  dom.invBox?.querySelectorAll('.use-btn').forEach(btn => {
+    btn.disabled = !hasActions;
+    btn.classList.toggle('hidden', !hasActions);
+  });
 
   // ── Text Input Bar (mirrors buttons) ───────────
   // Only show when buttons are showing *and* free-text mode is enabled.

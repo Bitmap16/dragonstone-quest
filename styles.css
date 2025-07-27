@@ -143,7 +143,7 @@ body {
 .sidebar-toggle {
   position: absolute;
   transition: background 0.18s ease;
-  right: -30px;
+  right: -31px;
   top: 50%;
   transform: translateY(-50%);
   width: 30px;
@@ -600,7 +600,7 @@ body {
 /* ━━━━━━━━━━━━ TOAST ━━━━━━━━━━━━*/
 #toast {
   position: fixed;
-  bottom: 20px; /* bottom right */
+  bottom: 0px;
   right: 20px;
   transform: translateY(20px);
   background: var(--clr-glass);
@@ -609,7 +609,7 @@ body {
   border-radius: var(--radius);
   padding: 0.6rem 1rem;
   color: var(--clr-text);
-  z-index: var(--z-overlay);
+  z-index: var(--z-notification);
   opacity: 0;
   pointer-events: none;
   transition: opacity .3s ease, transform .3s ease;
@@ -626,7 +626,7 @@ body {
 /* ━━━━━━━━━━━━ CENTER OVERRIDES ━━━━━━━━━━━━*/
 #thinking {
   position: fixed !important;
-  inset: 0 !important; /* full viewport */
+  inset: 0 !important;
 }
 
 #dialogue {
@@ -761,21 +761,19 @@ body {
 
 /*━━━━━━━━━━━━ 8 ▸ THINKING OVERLAY ━━━━━━━━━━━━*/
 #thinking {
-  position: absolute;
-  
+  position: fixed;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
-  gap: .95rem;
-  font-size: 1.13rem;
-  color: var(--clr-text);
-  background: rgb(0 0 0 / .55);
+  align-items: center;
+  gap: 1.5rem;
+  background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(4px);
   opacity: 0;
   transition: opacity .25s;
   pointer-events: none;
-  z-index: 4;
+  z-index: var(--z-overlay);
 }
 #thinking.visible { opacity: 1; pointer-events: auto; }
 .spinner {

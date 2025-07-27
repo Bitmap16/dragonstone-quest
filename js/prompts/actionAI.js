@@ -29,15 +29,27 @@ function safeParseJSON(jsonString) {
     }
 }
 
-async function getPlayerActions(currentScene) {
-    const prompt = `You are the player character in a role-playing game. The following is a scene from the story:
+async function getPlayerActions(conversationHistory) {
+    // Format the conversation history into a readable string
+    const formattedHistory = typeof conversationHistory === 'string' 
+        ? conversationHistory 
+        : Array.isArray(conversationHistory) 
+            ? conversationHistory.map(entry => 
+                typeof entry === 'string' ? entry : 
+                `${entry.role || 'unknown'}: ${entry.content || ''}`
+              ).join('\n\n')
+            : String(conversationHistory);
 
-"${currentScene}"
+    const prompt = `You are the player character in a role-playing game. The following is the recent conversation history:
 
-Based on this scene, what are 2 possible opposing actions you could take next? Phrase the actions in the first-person, as if they were being spoken aloud.
+${formattedHistory}
+
+Based on this conversation, what are 3 possible actions you could take next?
+
+Phrase the actions in the first-person, as if they were being spoken aloud. Consider the full context of the conversation when suggesting actions.
 
 IMPORTANT: Return ONLY a JSON array of strings. Each string should be a possible action.
-Example: ["I should check the chest.", "I should talk to the bartender.", "Nyx, where does that door go?"]
+Example: ["I should check the chest.", "I should talk to the bartender.", "Nyx, where does that door go?", "Let's search for clues in this room.", "I think we should rest here for a while."]
 
 Your response must be valid JSON. Do not include any other text, explanations, or markdown formatting.`;
 
@@ -59,10 +71,18 @@ Your response must be valid JSON. Do not include any other text, explanations, o
             return ["I continue forward.", "I look around.", "I check my inventory."];
         }
         
-        // Ensure all actions are strings
-        return actions.map(action => 
-            typeof action === 'string' ? action : String(action)
-        );
+        // Ensure all actions are strings and not too long
+        const processedActions = actions
+            .map(action => (typeof action === 'string' ? action : String(action)))
+            .filter(action => action.length > 0 && action.length < 100); // Basic validation
+            
+        // Ensure we have between 2-5 actions
+        if (processedActions.length < 2) {
+            console.warn('Not enough valid actions, using fallbacks');
+            return ["I continue forward.", "I look around.", "I check my inventory."];
+        }
+        
+        return processedActions.slice(0, 5); // Return max 5 actions
     } catch (error) {
         console.error('Error getting player actions:', error);
         return ["I continue forward.", "I look around.", "I check my inventory."];

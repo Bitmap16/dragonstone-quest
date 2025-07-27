@@ -168,12 +168,11 @@ async function handleAI(rawOutput, attempt = 0, skipSetting = false) {
       
       // Get actions for after dialogue
       if (getPlayerActions) {
-        const currentScene = lines.length > 0 ? 
-          lines[lines.length - 1].text : 
-          state.history.slice(-3).map(h => h.content).join('\n');
+        // Get the last 10 messages for context, including both user and assistant messages
+        const recentHistory = state.history.slice(-10);
         
         try {
-          actions = await getPlayerActions(currentScene) || [];
+          actions = await getPlayerActions(recentHistory) || [];
           // Ensure we have at least one action
           if (actions.length === 0) {
             console.warn('No actions returned from getPlayerActions, using fallback actions');
@@ -353,6 +352,8 @@ function initGame() {
   }
   
   bindInputHandlers(chat);
+  // Expose a global dispatcher so inventory 'Use' buttons can trigger chat actions.
+  window.dispatchUseAction = chat;
   renderHUD();
   
   // Set up start button click handler

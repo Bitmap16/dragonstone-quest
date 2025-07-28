@@ -10,13 +10,19 @@ function applyVol() {
 let MUSIC_MANIFEST = {};
 let musicManifestLoaded = false;
 
+// Function to get the current music manifest
+function getMusicManifest() {
+  return MUSIC_MANIFEST;
+}
+
 // Expose public functions
 window.audio = {
   playMusic,
   applyVol,
   loadMusicManifest,
   pickTrack,
-  validateMood
+  validateMood,
+  getMusicManifest
 };
 
 // Function to load the music manifest

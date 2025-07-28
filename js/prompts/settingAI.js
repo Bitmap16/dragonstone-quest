@@ -3,7 +3,6 @@
 
 import { askAI } from './storyAI.js';
 import { Console } from '../gameController.js';
-import { MUSIC_MANIFEST } from '../audio.js';
 
 
 // This will be populated with available settings when the module loads
@@ -14,24 +13,55 @@ let AVAILABLE_MOODS = [];
 async function loadAvailableOptions() {
   try {
     // Get settings from settings module
-    if (window.settings) {
+    if (window.settings && window.settings.getAvailableSettings) {
       AVAILABLE_SETTINGS = await window.settings.getAvailableSettings();
       Console.info('Loaded settings', AVAILABLE_SETTINGS);
+    } else {
+      Console.warning('window.settings not available yet, will retry later');
     }
     
     // Get moods from audio module if available
-    if (window.audio) {
+    if (window.audio && window.audio.loadMusicManifest) {
       await window.audio.loadMusicManifest();
-      AVAILABLE_MOODS = Object.keys(MUSIC_MANIFEST || {});
+      // Access MUSIC_MANIFEST dynamically from the audio module
+      const musicManifest = window.audio.getMusicManifest ? window.audio.getMusicManifest() : {};
+      AVAILABLE_MOODS = Object.keys(musicManifest);
       Console.info('Loaded moods', AVAILABLE_MOODS);
+    } else {
+      Console.warning('window.audio not available yet, will retry later');
     }
   } catch (error) {
     Console.error('Failed to load available options', error);
   }
 }
 
-// Initialize when the module loads
-loadAvailableOptions().catch(console.error);
+// Initialize when the module loads (with retry logic)
+function initializeWithRetry(attempts = 0) {
+  const maxAttempts = 10;
+  const retryDelay = 500; // 500ms
+  
+  loadAvailableOptions().then(() => {
+    // Success - check if we got the data we need
+    if (AVAILABLE_SETTINGS.length === 0 || AVAILABLE_MOODS.length === 0) {
+      if (attempts < maxAttempts) {
+        Console.info(`[settingAI] Retrying initialization (attempt ${attempts + 1}/${maxAttempts})`);
+        setTimeout(() => initializeWithRetry(attempts + 1), retryDelay);
+      } else {
+        Console.warning('[settingAI] Max initialization attempts reached');
+      }
+    }
+  }).catch(error => {
+    if (attempts < maxAttempts) {
+      Console.info(`[settingAI] Retrying initialization after error (attempt ${attempts + 1}/${maxAttempts})`);
+      setTimeout(() => initializeWithRetry(attempts + 1), retryDelay);
+    } else {
+      Console.error('[settingAI] Failed to initialize after max attempts', error);
+    }
+  });
+}
+
+// Start initialization
+initializeWithRetry();
 
 function getSettingPrompt() {
   return `You are the Setting AI for a text-only fantasy RPG.

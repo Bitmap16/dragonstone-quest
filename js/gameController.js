@@ -291,7 +291,7 @@ async function handleAI(rawOutput, attempt = 0, skipSetting = false) {
       line.text.includes("YOU'VE GOT TO BE KIDDING ME, YOU USELESS SACK OF DRAGON-!")
     ) {
       state.activeAudio.pause();
-      state.activeAudio.src = "music/meltdown/1.mp3";
+      state.activeAudio.src = "music/scripted/The Things We Forget (No API Key).mp3";
       document.getElementById("api-warning")?.classList.remove("hidden");
       state.activeAudio.currentTime = 0;
       state.activeAudio.loop = true;

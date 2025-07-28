@@ -1,33 +1,8 @@
 import { askAI } from './storyAI.js';
+import { Console } from '../gameController.js';
 
-// Helper function to safely parse JSON with fallback
-function safeParseJSON(jsonString) {
-    try {
-        // First try to parse as-is
-        return JSON.parse(jsonString);
-    } catch (e) {
-        try {
-            // If that fails, try to extract JSON from markdown code blocks
-            const jsonMatch = jsonString.match(/```(?:json)?\n([\s\S]*?)\n```/);
-            if (jsonMatch) {
-                return JSON.parse(jsonMatch[1]);
-            }
-            
-            // If no code blocks, try to find an array pattern
-            const arrayMatch = jsonString.match(/\[\s*("[^"]*"(?:\s*,\s*"[^"]*")*)?\s*\]/);
-            if (arrayMatch) {
-                return JSON.parse(arrayMatch[0]);
-            }
-            
-            // If all else fails, return a default action
-            console.warn('Could not parse JSON, using fallback actions');
-            return ["I continue forward.", "I look around.", "I check my inventory."];
-        } catch (innerError) {
-            console.warn('Failed to parse JSON with fallback, using default actions');
-            return ["I continue forward.", "I look around.", "I check my inventory."];
-        }
-    }
-}
+// Import JSON parsing utility from utils.js
+// Note: safeParseJSON is available globally via utils.js
 
 async function getPlayerActions(conversationHistory) {
     // Format the conversation history into a readable string
@@ -55,7 +30,7 @@ Your response must be valid JSON. Do not include any other text, explanations, o
 
     try {
         const response = await askAI([{ role: 'user', content: prompt }], { model: CONFIG.ACTION_MODEL });
-        console.log('Raw AI response:', response); // Log raw response for debugging
+        Console.aiResponse('Action AI', response);
         
         // Clean up the response and parse it
         const cleanedResponse = response.trim()
@@ -63,7 +38,7 @@ Your response must be valid JSON. Do not include any other text, explanations, o
             .replace(/\n```$/, '')         // Remove closing code block
             .trim();
             
-        const actions = safeParseJSON(cleanedResponse);
+        const actions = safeParseJSON(cleanedResponse, ["I continue forward.", "I look around.", "I check my inventory."]);
         
         // Ensure we return an array
         if (!Array.isArray(actions)) {
@@ -76,13 +51,13 @@ Your response must be valid JSON. Do not include any other text, explanations, o
             .map(action => (typeof action === 'string' ? action : String(action)))
             .filter(action => action.length > 0 && action.length < 100); // Basic validation
             
-        // Ensure we have between 2-5 actions
-        if (processedActions.length < 2) {
-            console.warn('Not enough valid actions, using fallbacks');
+        // If AI produced zero usable actions, fall back to defaults
+        if (processedActions.length === 0) {
+            console.warn('No valid actions parsed, using fallbacks');
             return ["I continue forward.", "I look around.", "I check my inventory."];
         }
         
-        return processedActions.slice(0, 5); // Return max 5 actions
+        return processedActions.slice(0, 5); // Use whatever number the AI provided (up to 5)
     } catch (error) {
         console.error('Error getting player actions:', error);
         return ["I continue forward.", "I look around.", "I check my inventory."];

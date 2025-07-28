@@ -48,3 +48,44 @@ const moodSlug = m => {
     .replace(/-+/g, '-') // Replace multiple hyphens with a single one
     .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
 };
+
+/**
+ * Safely parse JSON with fallback handling for AI responses
+ * @param {string} jsonString - The JSON string to parse
+ * @param {any} fallback - Fallback value if parsing fails
+ * @returns {any} Parsed JSON or fallback value
+ */
+function safeParseJSON(jsonString, fallback = null) {
+  try {
+    // First try to parse as-is
+    return JSON.parse(jsonString);
+  } catch (e) {
+    try {
+      // If that fails, try to extract JSON from markdown code blocks
+      const jsonMatch = jsonString.match(/```(?:json)?\n([\s\S]*?)\n```/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[1]);
+      }
+      
+      // If no code blocks, try to find an array pattern
+      const arrayMatch = jsonString.match(/\[\s*("[^"]*"(?:\s*,\s*"[^"]*")*)?\s*\]/);
+      if (arrayMatch) {
+        return JSON.parse(arrayMatch[0]);
+      }
+      
+      // If all else fails, return fallback
+      console.warn('Could not parse JSON, using fallback value');
+      return fallback;
+    } catch (innerError) {
+      console.warn('Failed to parse JSON with fallback, using fallback value');
+      return fallback;
+    }
+  }
+}
+
+// Expose utility functions globally
+window.safeParseJSON = safeParseJSON;
+window.cssClassFor = cssClassFor;
+window.pastel = pastel;
+window.expSrc = expSrc;
+window.moodSlug = moodSlug;

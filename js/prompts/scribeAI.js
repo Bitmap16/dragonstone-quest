@@ -4,6 +4,8 @@
  *  - Returns the full updated `notes` array or falls back to prevNotes
  * ────────────────────────────────────────────────────────────────*/
 
+import { Console } from '../gameController.js';
+
 
 /* 1 ▸ Human-readable system prompt  ───────────────────────────── */
 export const SCRIBE_PROMPT = `
@@ -116,7 +118,7 @@ export async function summarizerAI(dialogueLines, prevNotes, attempt = 0) {
   }).then(r => r.json());
 
   const raw = response.choices?.[0]?.message?.content ?? "";
-  console.log("[SCRIBE] raw output:", raw);
+  Console.aiResponse('Scribe AI', raw);
 
   /* Strip code-fences if the model added them */
   const cleaned = raw

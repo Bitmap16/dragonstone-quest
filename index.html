@@ -23,8 +23,8 @@
   <script defer src="js/config.js"></script>
   <script defer src="js/state.js"></script>
   <script defer src="js/utils.js"></script>
-  <script defer src="js/audio.js"></script>
-  <script type="module" defer src="js/settings.js"></script>
+  <script type="module" defer src="js/audio.js"></script>
+
   <script type="module" defer src="js/ui.js"></script>
   <script type="module" defer src="js/prompts/storyAI.js"></script>
   <script type="module" defer src="js/prompts/scribeAI.js"></script>
@@ -101,7 +101,7 @@
       </ul>
     </div>
     <button id="settings-btn" class="icon-btn" type="button" title="Settings" aria-label="Open settings">⚙️</button>
-    <button id="text-toggle" class="icon-btn" type="button" title="Toggle text input" aria-label="Toggle text input">✎</button>
+    <button id="text-toggle" class="icon-btn" type="button" title="Toggle text input" aria-label="Toggle text input">📝</button>
   </div>
 
   <!-- ▸ PLAYFIELD ======================================================= -->
@@ -160,6 +160,11 @@
         <label for="set-textspeed">Text speed</label>
         <input id="set-textspeed" type="range" min="5" max="100" step="1">
         <span id="val-textspeed" class="val">22 ms</span>
+      </div>
+
+      <div class="setting">
+        <label for="set-crass">Allow profanity & adult themes</label>
+        <input id="set-crass" type="checkbox">
       </div>
     </div>
   </div>

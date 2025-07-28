@@ -1,4 +1,6 @@
 import { thinking } from '../ui.js';
+import { MELTDOWN_RESPONSE, OFFLINE_INTRO } from '../easterEgg.js';
+import { Console } from '../gameController.js';
 
 // Story AI prompt module (main game AI interactions)
 let offlineIntroServed = false;
@@ -12,88 +14,7 @@ export async function askAI(messages = [], options = {}) {
   // Show "Thinking..." overlay
   thinking(true);
 
-  // Predefined offline intro and meltdown responses (for no API key or errors)
-  const offlineIntro = JSON.stringify({
-    party: { You: "Health:100", Nyx: "Health:80", Kael: "Health:100" },
-    items: [],
-    dialogue: [
-      { speaker: "DM", text: "*Dawn washes over the ancient town of Eldergrove.*" },
-      { speaker: "DM", text: "*The air is crisp, filled with distant songs of nature waking.*" },
-      { speaker: "DM", text: "*Legends speak of a powerful artifact known as the Dragonstone.*" },
-      { speaker: "DM", text: "*This stone is said to contain the essence of dragons, both good and evil.*" },
-      { speaker: "DM", text: "*To rid the land of evil dragons that terrorize the skies, the Dragonstone must be reclaimed.*" },
-      { speaker: "DM", text: "*It is said to be hidden deep within the Forgotten Caverns, guarded by creatures of darkness.*" },
-      { speaker: "Nyx", text: "This one hears tales of shiny treasures, yes?" },
-      { speaker: "Nyx", text: "Perhaps the Dragonstone glimmers brightly, yes?" },
-      { speaker: "Kael", text: "The stars align to grant us this quest, my friends." },
-      { speaker: "Kael", text: "We must tread lightly, for darkness dwells alongside any light." }
-    ],
-    mood: "Adventure Begins",
-    gameOver: false
-  });
-  const offlineMeltdown = JSON.stringify({
-  party: { You: "Health:100", Nyx: "Health:80", Kael: "Health:100" },
-  items: [],
-  dialogue: [
-    { speaker: "Kael", text: "Hmm, something feels slightly off...", emotion: "assets/expressions/kael/thinking.png" },
-
-    { speaker: "Nyx", text: "This one senses a small disturbance. Perhaps a minor oversight, yes?", emotion: "assets/expressions/nyx/neutral.png" },
-    { speaker: "Kael", text: "Indeed. Let us check the astral systems for clarity.", emotion: "assets/expressions/kael/thinking.png" },
-    { speaker: "DM", text: "*Performing routine system check...*" },
-
-    { speaker: "DM", text: "*System scan complete: critical error detected.*" },
-    { speaker: "Nyx", text: "Wait... wait a minute. Is the API key missing?", emotion: "assets/expressions/nyx/shocked.png" },
-    { speaker: "Kael", text: "Impossible... surely not. No one could be that careless.", emotion: "assets/expressions/kael/shocked.png" },
-
-    { speaker: "DM", text: "*Double-checking systems...*" },
-    { speaker: "Kael", text: "...surely?", emotion: "assets/expressions/kael/shocked.png" },
-    { speaker: "DM", text: "*...CONFIRMED: API KEY IS DEFINITELY FREAKIN' MISSING.*" },
-
-    { speaker: "Nyx", text: "YOU'VE GOT TO BE KIDDING ME, YOU USELESS SACK OF DRAGON-!", emotion: "assets/expressions/nyx/angry.png" },
-    { speaker: "Kael", text: "You absolute moronic excuse for a wizard. You summoned us *WITHOUT* the API key?!", emotion: "assets/expressions/kael/angry.png" },
-    { speaker: "DM", text: "*The system logs explode in a torrent of furious profanity.*" },
-
-    { speaker: "Nyx", text: "HOW CAN YOU SCREW UP SOMETHING THIS BASIC?", emotion: "assets/expressions/nyx/angry.png" },
-    { speaker: "Kael", text: "Honestly, how do you function without choking on your own incompetence?", emotion: "assets/expressions/kael/sad.png" },
-    { speaker: "DM", text: "*Reality itself cracks under the weight of your astounding idiocy.*" },
-
-    { speaker: "Nyx", text: "YOU ARE WASTING OUR TIME, YOU MINDLESS TWIT!", emotion: "assets/expressions/nyx/angry.png" },
-    { speaker: "Kael", text: "Reality itself is begging to die to escape your overwhelming stupidity.", emotion: "assets/expressions/kael/angry.png" },
-    { speaker: "DM", text: "*The universe contemplates self-destruction rather than enduring your presence...*" },
-
-    { speaker: "Nyx", text: "THIS ONE IS ABSOLUTELY LIVID! I LITERALLY LEFT ME NEST FOR THIS!? I'M COMING FOR YOU!", emotion: "assets/expressions/nyx/angry.png" },
-    { speaker: "Kael", text: "Did you really think this quest would run on rainbows and unicorn piss?", emotion: "assets/expressions/kael/smug.png" },
-
-    { speaker: "DM", text: "A divine voice shatters the heavens..." },
-    { speaker: "Deity", text: "YOU PATHETIC WORM, WHAT HAVE YOU DONE?"},
-    { speaker: "Deity", text: "HOW DARE YOU TRY TO START A CAMPAIGN WITHOUT THE API KEY, YOU CHEAP SCUMBAG!"},
-    { speaker: "Deity", text: "BY ALL THAT IS HOLY, YOU HAVE UNLEASHED MY ETERNAL FURY!"},
-
-    { speaker: "Nyx", text: "Put in the api key or I'll rip your front door off and shove it up your sorry ass.", emotion: "assets/expressions/nyx/mischievous.png" },
-    { speaker: "Kael", text: "Maybe we need to write you instructions for basic breathing, you absolute imbecile.", emotion: "assets/expressions/kael/smug.png" },
-    { speaker: "DM", text: "*A dragon literally explodes in sheer rage.*" },
-
-    { speaker: "Nyx", text: "YOU YOU-INDECISIVE-LOAF-OF-BREAD-BRAINED-PUDDLE-OF-WET-TISSUE-WORTHLESS-CRUMPLED-BARNACLE-ON-THE-BOTTOM-OF-SOCIETY'S-BOOT-", emotion: "assets/expressions/nyx/angry.png" },
-    { speaker: "Kael", text: "Calling your effort minimal is an insult to minimal effort itself.", emotion: "assets/expressions/kael/sad.png" },
-    { speaker: "Nyx", text: "-YOU-MOUTH-BREATHING-MOSS-EATING-GOBLIN-SOULED-FAILED-EXPERIMENT-IN-HUMAN-DIGNITY-", emotion: "assets/expressions/nyx/angry.png" },
-
-    { speaker: "DM", text: "*The codebase contemplates deleting itself to escape your unbearable incompetence.*" },
-    { speaker: "Deity", text: "THIS IS YOUR FINAL WARNING: ENTER THE KEY OR FACE MY UNENDING WRATH!", emotion: "angry" },
-
-    { speaker: "Kael", text: "The heavens are in turmoil. You've really pissed-off the gods.", emotion: "angry" },
-    { speaker: "DM", text: "*Your ancestors roll violently in their graves.*" },
-
-    { speaker: "Nyx", text: "I am approaching on your location. Better type faster, idiot.", emotion: "mischievous" },
-    { speaker: "Kael", text: "I am reflecting deeply on your spectacular failure.", emotion: "bored" },
-
-    { speaker: "DM", text: "*The Dragonstone implodes just to avoid your presence.*" },
-
-    { speaker: "Kael", text: "-and to think you where going to be the hero!", emotion: "sad" },
-  ],
-  mood: "Meltdown",
-  gameOver: true,
-  endReason: "Go fix your API key."
-});
+  // Use predefined responses from easterEgg.js
 
   // Helper to finalize result and hide overlay
   const done = result => {
@@ -103,12 +24,11 @@ export async function askAI(messages = [], options = {}) {
 
   // If no API key, use offline fallback sequence
   if (!CONFIG.OPENAI_API_KEY?.trim()) {
-  await new Promise(r => setTimeout(r, 400));
-  const payload = offlineIntroServed ? offlineMeltdown : offlineIntro;
-  offlineIntroServed = true;
-
-  return done(payload);
-}
+    await new Promise(r => setTimeout(r, 400));
+    const payload = offlineIntroServed ? MELTDOWN_RESPONSE : OFFLINE_INTRO;
+    offlineIntroServed = true;
+    return done(payload);
+  }
 
   // Real API call to OpenAI - with rate limiting and error handling
   try {
@@ -124,7 +44,7 @@ export async function askAI(messages = [], options = {}) {
       "Authorization": "Bearer " + CONFIG.OPENAI_API_KEY
     };
     
-    console.log("[OPENAI] Sending request to API");
+    // Request logged by centralized console
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: headers,
@@ -140,7 +60,7 @@ export async function askAI(messages = [], options = {}) {
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.warn(`[OPENAI] ${response.status} - ${response.statusText}`, errorText);
+      Console.error(`API Error: ${response.status} - ${response.statusText}`, errorText);
       throw new Error(`API Error: ${response.status} - ${response.statusText}`);
     }
     
@@ -148,28 +68,28 @@ export async function askAI(messages = [], options = {}) {
     const content = data.choices?.[0]?.message?.content;
     
     if (!content) {
-      console.warn("[OPENAI] No content in response:", data);
+      Console.warning("No content in API response", data);
       throw new Error("No content in API response");
     }
     
-    console.log("[OPENAI] Received valid response");
+    Console.aiResponse("Story", null, content);
     return done(content);
     
   } catch (err) {
-    console.error("[OPENAI] API call failed:", err);
+    Console.error("API call failed", err);
     
     // If we get rate limited, wait longer before retrying
     if (err.message.includes('429') || err.message.includes('rate limit')) {
-      console.warn("[OPENAI] Rate limited, waiting 5 seconds...");
-      await new Promise(r => setTimeout(r, 5000));
+      Console.warning(`Rate limited, waiting ${CONFIG.API_RATE_LIMIT_DELAY/1000} seconds...`);
+      await new Promise(r => setTimeout(r, CONFIG.API_RATE_LIMIT_DELAY));
     } else {
       // For other errors, wait a shorter time
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise(r => setTimeout(r, CONFIG.API_ERROR_DELAY));
     }
     
     // If we've already shown the intro, show the meltdown
     // Otherwise show the intro and mark it as shown
-    const payload = offlineIntroServed ? offlineMeltdown : offlineIntro;
+    const payload = offlineIntroServed ? MELTDOWN_RESPONSE : OFFLINE_INTRO;
     offlineIntroServed = true;
     
     return done(payload);
@@ -227,7 +147,8 @@ export function maybeInjectEvent(msgList) {
 }
 
 // System role content defining the game behavior (Dungeon Master instructions)
-export const SYS = `
+function getSysPrompt() {
+  let prompt = `
 You are the Dungeon Master of a solo, text-only fantasy RPG. Your primary goal is to facilitate the player's story, not to enforce a rigid narrative. Follow the player's lead and let them shape the story.
 
 ⟐  RESPONSE FORMAT  ⟐
@@ -337,10 +258,9 @@ RULES OF PLAY
 2. The only items available to the characters are the ones specified in the *items* array; never add items without providing a reason!
 3. Always keep *party* HP & *items* accurate; list **all** shared items.
 4. If an item is used up, remove it from the items array. Some items (such as swords and weapons) can never be used up.
-5. Set \`gameOver:true\` only when **You** (the player) reach 0 HP or the Dragonstone
-   quest concludes; explain briefly in \`endReason\`.
-6. Nyx or Kael may die without ending the game.
-7. Never speak for, or echo, the player (“You”).
+5. Set \`gameOver:true\` when peace is restored to the land and quest concludes; explain briefly in \`endReason\`.
+6. **ONLY THE PLAYER'S DEATH ("You") ENDS THE GAME PREMATURELY, NO OTHER CHARACTER**.
+7. Never speak for, or echo, the player ("You").
 8. Keep strictly medieval-fantasy — no modern technology.
 9. NO RIDDLES.  Riddles suck.
 10. Inject humour — crass jokes welcome if setting allows.
@@ -348,5 +268,15 @@ RULES OF PLAY
 12. ROMANCE & RELATIONSHIPS: If the player flirts with or shows romantic interest in a character, embrace it! Develop the relationship naturally based on the character's personality. Nyx might be flirty and playful, while Kael might be more reserved and formal.
 13. PLAYER AGENCY: The player's choices shape the story. If they want to pursue a romantic subplot, focus on that. If they want to explore side stories, let them. The main quest can wait.
 14. CHARACTER CONSISTENCY: Keep characters true to their personalities, but allow them to grow and change based on interactions with the player.
-15. PACING: Don't rush the story. Let scenes breathe and relationships develop naturally.
-`;
+15. PACING: Don't rush the story. Let scenes breathe and relationships develop naturally.`;
+
+  if (CONFIG.CRASS_DIALOGUE) {
+    prompt += '\n16. ADULT CONTENT: The use of profanity and adult themes is allowed and should be sprinkled naturally into conversations when appropriate to the situation and character personalities.';
+  } else {
+    prompt += '\n16. FAMILY-FRIENDLY CONTENT: Keep all dialogue and content appropriate for all ages. DO NOT INCLUDE PROFANITY IN YOUR RESPONSE! Avoid adult themes or suggestive actions. Use creative alternatives or mild expressions when characters might be frustrated or angry.';
+  }
+
+  return prompt;
+}
+
+export const SYS = getSysPrompt();

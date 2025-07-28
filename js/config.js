@@ -2,12 +2,11 @@
 const CONFIG = {
   /* OpenAI API settings */
   OPENAI_API_KEY: 
-/* Hardcoded API key (DO NOT POST)*/
-"",
+"", // Hardcoded API key incase you're lazy like me (DO NOT SHARE FILE WITH KEY)
 
   MODEL: "gpt-4o-mini",
   SCRIBE_MODEL: "gpt-4o-mini",
-  SETTING_MODEL: "gpt-4o-mini",
+  SETTING_MODEL: "gpt-3.5-turbo", // FYI: this model runs twice per call
   ACTION_MODEL: "gpt-3.5-turbo",
 
   /* Gameplay settings */
@@ -24,6 +23,21 @@ const CONFIG = {
   FADE_MS: 5000,
   STEP_MS: 50,
   USER_VOLUME: 0.35,
+  
+  /* UI and Display settings */
+  MAX_DIALOGUE_LENGTH: 180,  // Max chars before force splitting dialogue
+  MOBILE_BREAKPOINT: 720,    // Screen width for mobile detection
+  SCRIBE_HISTORY_LIMIT: 10,  // Recent history items for scribe AI
+  
+  /* Content settings */
+  CRASS_DIALOGUE: false,  // Allow profanity and adult themes
+  
+  /* API settings */
+  API_RATE_LIMIT_DELAY: 5000, // Delay after rate limit (ms)
+  API_ERROR_DELAY: 1000,      // Delay after other API errors (ms)
+  
+  /* File extensions for audio */
+  AUDIO_EXTENSIONS: ['mp3', 'ogg', 'wav'],
 
   /* Starting inventory */
   START_ITEMS: [ { "Short Sword": 1 }, { "Lockpick Set": 1 }, { "Gold Coin": 15 } ],
@@ -47,7 +61,7 @@ const CONFIG = {
     "Injury or damage is inflicted on the party.",
     "Injury or damage is inflicted on you (the player).",
     "There is discontentment among your party members.",
-    "A riddle is asked by a mysterious figure.",
+    "A new character wants to join your party.",
     "Weather shifts dramatically, affecting travel.",
     "A hidden trap is triggered unexpectedly.",
     "A magical anomaly disrupts your progress."

@@ -22,6 +22,100 @@ import {
 
 // Game controller: main game loop and logic
 
+// ============================================================================
+// CENTRALIZED CONSOLE SYSTEM
+// ============================================================================
+
+const Console = {
+  // Console styling
+  styles: {
+    header: 'color: #9c27b0; font-weight: bold; font-size: 14px;',
+    success: 'color: #4caf50; font-weight: bold;',
+    info: 'color: #2196f3;',
+    warning: 'color: #ff9800; font-weight: bold;',
+    error: 'color: #f44336; font-weight: bold;',
+    data: 'color: #607d8b; font-style: italic;'
+  },
+
+  // Log AI responses with collapsible JSON
+  aiResponse(type, data, raw = null) {
+    const timestamp = new Date().toLocaleTimeString();
+    console.groupCollapsed(
+      `%c[${timestamp}] 🤖 ${type} AI Response`,
+      this.styles.header
+    );
+    
+    if (data) {
+      console.log('%cParsed Data:', this.styles.success);
+      console.log(data);
+    }
+    
+    if (raw) {
+      console.log('%cRaw Response:', this.styles.data);
+      console.log(raw);
+    }
+    
+    console.groupEnd();
+  },
+
+  // Log now playing with music info
+  nowPlaying(track, mood) {
+    console.log(
+      `%c♪ Now Playing: %c${track} %c(${mood})`,
+      this.styles.header,
+      this.styles.info,
+      this.styles.data
+    );
+  },
+
+  // Log background changes
+  backgroundChange(setting) {
+    console.log(
+      `%c🎨 Background: %c${setting}`,
+      this.styles.header,
+      this.styles.success
+    );
+  },
+
+  // Log errors with context
+  error(message, context = null) {
+    console.group(`%c❌ Error: ${message}`, this.styles.error);
+    if (context) {
+      console.log('%cContext:', this.styles.data);
+      console.log(context);
+    }
+    console.groupEnd();
+  },
+
+  // Log warnings
+  warning(message, data = null) {
+    console.log(`%c⚠️ ${message}`, this.styles.warning);
+    if (data) console.log(data);
+  },
+
+  // Log general info
+  info(message, data = null) {
+    console.log(`%cℹ️ ${message}`, this.styles.info);
+    if (data) console.log(data);
+  },
+
+  // Log game state changes
+  gameState(action, data = null) {
+    console.log(
+      `%c🎮 Game: %c${action}`,
+      this.styles.header,
+      this.styles.success
+    );
+    if (data) console.log(data);
+  }
+};
+
+// Make Console available globally
+window.GameConsole = Console;
+
+// Export Console for module imports
+export { Console };
+
 // Process a player's action input by sending to AI and handling the response
 async function chat(inputText) {
   // Hide action buttons and show input while processing
@@ -60,9 +154,9 @@ async function chat(inputText) {
 async function handleAI(rawOutput, attempt = 0, skipSetting = false) {
   // Safety check to prevent infinite loops
   if (attempt >= 2) { // Only allow 2 repair attempts
-    console.error("[AI] Maximum repair attempts reached. Using fallback response.");
+    Console.error("Maximum repair attempts reached. Using fallback response.");
     // Show error to user
-    await showNarration("The storyteller seems to be having trouble. Let's try something else...");
+    await showNarration("The narrator seems to be having some trouble. How about picking a different action?");
     // Force a valid game state
     return showActionButtons(["Continue forward", "Look around", "Check inventory"], chat);
   }
@@ -72,7 +166,7 @@ async function handleAI(rawOutput, attempt = 0, skipSetting = false) {
 
   // If we can't parse the JSON, try to get a better response
   if (!data || !data.dialogue) {
-    console.warn("[AI] Invalid or missing JSON response, attempting repair...");
+    Console.warning("Invalid or missing JSON response, attempting repair...");
     
     // Don't add invalid responses to history to prevent pollution
     if (attempt === 0) {
@@ -104,7 +198,7 @@ async function handleAI(rawOutput, attempt = 0, skipSetting = false) {
   let lines = data.dialogue ?? [];
   // QoL: Split overly long dialogue into shorter chunks (~180 chars)
   const splitLines = [];
-  const MAX_LEN = 180;
+  const MAX_LEN = CONFIG.MAX_DIALOGUE_LENGTH;
   for (const ln of lines) {
     if (ln.text && ln.text.length > MAX_LEN) {
       // Split on sentence endings followed by space
@@ -141,35 +235,34 @@ async function handleAI(rawOutput, attempt = 0, skipSetting = false) {
           .slice(-2000);
 
         const availableSettings = window.settings?.getAvailableSettings?.() || [];
-        const availableMoods = Object.keys(window.audio?.MUSIC_MANIFEST || {});
-
-        const settingData = await window.settingAI.determineSetting({
+        // Determine next setting
+        const { setting } = await window.settingAI.determineSetting({
           pastSettings: state.history.map(h => h.content).join('\n'),
           pastDialogue: lines.map(l => `${l.speaker}: ${l.text}`).join('\n'),
-          availableSettings,
-          availableMoods
+          availableSettings
+        });
+
+        // Determine music mood separately
+        const { mood } = await window.settingAI.determineMood({
+          pastDialogue: lines.map(l => `${l.speaker}: ${l.text}`).join('\n')
         });
         
-        if (settingData?.setting) {
-          const bgElement = document.getElementById('background');
-          if (bgElement && settingData.setting !== bgElement.dataset.currentSetting) {
-            bgElement.style.backgroundImage = `url('assets/settings/${settingData.setting}.png')`;
-            bgElement.dataset.currentSetting = settingData.setting;
-          }
+        if (setting) {
+          updateSetting(setting);
         }
         
-        // Update music if mood is provided and different from current
-        if (settingData?.mood && settingData.mood !== state.currentMood) {
-           if (window.audio?.playMusic) {
-             window.audio.playMusic(settingData.mood);
-           }
-         }
+        // Update music if new mood chosen
+        if (mood && mood !== state.currentMood) {
+          if (window.audio?.playMusic) {
+            window.audio.playMusic(mood);
+          }
+        }
       }
       
       // Get actions for after dialogue
       if (getPlayerActions) {
         // Get the last 10 messages for context, including both user and assistant messages
-        const recentHistory = state.history.slice(-10);
+        const recentHistory = state.history.slice(-CONFIG.SCRIBE_HISTORY_LIMIT);
         
         try {
           actions = await getPlayerActions(recentHistory) || [];
@@ -275,14 +368,14 @@ async function kickoff() {
   thinking(true);
   try {
     // Default starting setting & mood (skip initial settingAI call)
-    console.log('[kickoff] Using default starting setting and mood');
-    window.settings.updateSetting('adventure-begins');
-    playMusic('narrative/foreboding');
+    Console.info('Using default starting setting and mood');
+    // Background will be chosen by settingAI after initial story prompt
+    window.audio.playMusic('narrative/beginning of adventure');
 
     // Build initial prompt for story AI
     const initialMessages = [
       { role: 'system', content: SYS },
-      { role: 'system', content: 'Current Setting: adventure-begins' },
+      
       { role: 'system', content: 'Starting items: ' + JSON.stringify(CONFIG.START_ITEMS) },
       { role: 'user', content: CONFIG.INITIAL_PROMPT },
     ];
@@ -290,24 +383,26 @@ async function kickoff() {
     const rawResponse = await askAI(initialMessages);
     state.history.push({ role: 'assistant', content: rawResponse });
 
+    // Allow settingAI to run on this very first handleAI call
+    state.kickoffCompleted = true;
     notesThinking(true);
     await handleAI(rawResponse, 0);
   } catch (error) {
-    console.error('[kickoff] A critical error occurred during initialization:', error);
+    Console.error('Critical error during initialization', error);
     try {
       // Basic fallback
-      window.settings.updateSetting('adventure-begins');
-      playMusic('narrative/foreboding');
-      await showNarration("The storyteller is having trouble starting the adventure. Let's begin your journey...");
+      window.settings.updateSetting('autumn_glade');
+      window.audio.playMusic('narrative/foreboding');
+      await showNarration("The narrator is having trouble starting the adventure. Let's begin your journey...");
       const initialActions = ['Look around', 'Check your gear', 'Talk to your companions'];
       showActionButtons(initialActions, chat);
     } catch (fallbackError) {
-      console.error('[kickoff] Fallback initialization failed:', fallbackError);
+      Console.error('Fallback initialization failed', fallbackError);
     }
   } finally {
     thinking(false);
     notesThinking(false);
-    // Mark kickoff complete so settingAI can run on later turns
+        // Mark kickoff complete so settingAI can run on later turns
     state.kickoffCompleted = true;
   }
 }
@@ -342,6 +437,85 @@ $("load-file").onclick = () => {
   loadFromFile();
 };
 
+// ============================================================================
+// BACKGROUND/SETTING MANAGEMENT
+// ============================================================================
+
+let SETTINGS_MANIFEST = {
+  settings: []
+};
+
+let manifestLoaded = false;
+let manifestLoading = null;
+
+/**
+ * Ensure the settings manifest is loaded
+ * @returns {Promise<boolean>} True if manifest loaded successfully
+ */
+async function ensureManifestLoaded() {
+  if (manifestLoaded) return true;
+  if (manifestLoading) return manifestLoading;
+
+  manifestLoading = (async () => {
+    try {
+      const response = await fetch('settings-manifest.json');
+      SETTINGS_MANIFEST = await response.json();
+      Console.info('Settings manifest loaded successfully');
+      manifestLoaded = true;
+      return true;
+    } catch (error) {
+      Console.warning('Failed to load settings manifest, using empty manifest', error);
+      SETTINGS_MANIFEST = { settings: [] };
+      return false;
+    } finally {
+      manifestLoading = null;
+    }
+  })();
+
+  return manifestLoading;
+}
+
+/**
+ * Update the game's background image.
+ * @param {string} settingName The name of the setting (e.g., 'forest')
+ */
+function updateSetting(settingName) {
+  if (!settingName) {
+    Console.warning('updateSetting called with no setting name.');
+    return;
+  }
+
+  // The background element is a div, so we set backgroundImage style
+  if (dom?.background) {
+    const bgPath = `assets/settings/${settingName}.webp`;
+    
+    // Verify the image exists before setting it
+    const img = new Image();
+    img.src = bgPath;
+    img.onload = () => {
+      dom.background.style.backgroundImage = `url('${bgPath}')`;
+      dom.background.style.backgroundSize = 'cover';
+      dom.background.style.backgroundPosition = 'center';
+      dom.background.style.backgroundRepeat = 'no-repeat';
+      Console.backgroundChange(settingName);
+    };
+    img.onerror = () => {
+      Console.warning(`Background image not found at ${bgPath}. Keeping current background.`);
+    };
+  } else {
+    Console.error('dom.background element not found.');
+  }
+}
+
+/**
+ * Get the list of available settings
+ * @returns {Promise<string[]>} Array of setting IDs
+ */
+async function getAvailableSettings() {
+  await ensureManifestLoaded();
+  return [...(SETTINGS_MANIFEST.settings || [])];
+}
+
 // Initialize game
 function initGame() {
   // Make sure DOM elements are available
@@ -354,6 +528,20 @@ function initGame() {
   bindInputHandlers(chat);
   // Expose a global dispatcher so inventory 'Use' buttons can trigger chat actions.
   window.dispatchUseAction = chat;
+  
+  // Expose settings functions globally (moved from settings.js)
+  window.settings = {
+    ensureManifestLoaded,
+    getAvailableSettings,
+    updateSetting,
+    get manifest() {
+      return {...SETTINGS_MANIFEST};
+    }
+  };
+  
+  // Initialize settings manifest
+  ensureManifestLoaded().catch(console.error);
+  
   renderHUD();
   
   // Set up start button click handler
@@ -434,4 +622,71 @@ dom.restartBtn.onclick = () => {
 function wrapYou(text) {
   // For this game, we can simply return text as-is; adjust if any format needed.
   return text;
+}
+
+
+
+// ============================================================================
+// SAVE/LOAD FUNCTIONALITY
+// ============================================================================
+
+// Hidden file input for save/load
+const fileInput = Object.assign(document.createElement("input"), {
+  type: "file",
+  accept: ".json",
+  hidden: true
+});
+document.body.appendChild(fileInput);
+
+// State persistence helpers
+function savePayload() {
+  return JSON.stringify({
+    notes: state.notes,
+    party: state.party,
+    items: state.items,
+    history: state.history,
+    mood: state.currentMood
+  });
+}
+
+function saveToFile() {
+  const blob = new Blob([savePayload()], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const ts = new Date().toISOString().slice(0, 16).replace("T", "_").replace(":", "-");
+  a.download = `dragonstone-save-${ts}.json`;
+  a.href = url;
+  a.click();
+  URL.revokeObjectURL(url);
+  Console.gameState("Game saved", a.download);
+}
+
+function loadFromFile() {
+  fileInput.click();
+  fileInput.onchange = () => {
+    const f = fileInput.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const d = JSON.parse(e.target.result);
+        Object.assign(state, {
+          notes: Array.isArray(d.notes) ? d.notes : [],
+          party: d.party ?? {},
+          items: Array.isArray(d.items) ? d.items : [],
+          history: Array.isArray(d.history) ? d.history : [],
+          currentMood: d.mood ?? ""
+        });
+        Console.gameState("Game loaded", { notes: state.notes.length, party: Object.keys(state.party), items: state.items.length });
+        renderHUD();
+        if (state.currentMood) window.audio.playMusic(state.currentMood, true);
+        dom.endOL.classList.add("hidden");
+        if (state.history.length) handleAI(state.history.at(-1).content, 0);
+      } catch (err) {
+        Console.error("Invalid save file", err);
+        alert("Invalid save file.");
+      }
+    };
+    reader.readAsText(f);
+  };
 }

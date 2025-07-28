@@ -1,4 +1,5 @@
 // Audio system (music and sound effects)
+import { Console } from './gameController.js';
 function applyVol() {
   // Apply current volume or mute to active audio tracks
   const volume = state.muted ? 0 : state.userVolume;
@@ -25,9 +26,9 @@ async function loadMusicManifest() {
     const response = await fetch('music-manifest.json');
     MUSIC_MANIFEST = await response.json();
     musicManifestLoaded = true;
-    console.log('[audio] Music manifest loaded successfully');
+    Console.info('Music manifest loaded successfully');
   } catch (error) {
-    console.warn('[audio] Failed to load music manifest, using empty manifest:', error);
+    Console.warning('Failed to load music manifest, using empty manifest', error);
     MUSIC_MANIFEST = {};
   }
 }
@@ -43,14 +44,13 @@ function validateMood(mood, setting = null) {
   // Get available moods from the manifest
   const availableMoods = Object.keys(MUSIC_MANIFEST);
   
-  console.log(`[audio] validateMood: Checking mood '${normalizedMood}'`);
-  console.log(`[audio] validateMood: Mood is valid:`, availableMoods.includes(normalizedMood));
+  // Mood validation logged by centralized console
   
   if (availableMoods.includes(normalizedMood)) {
-    console.log(`%c[audio] %cMood validated: %c${normalizedMood}`, 'color: #9c27b0; font-weight: bold', 'color: #4caf50', 'color: #2196f3');
+    Console.info(`Mood validated: ${normalizedMood}`);
     return normalizedMood;
   } else {
-    console.warn(`[audio] Invalid mood: ${normalizedMood}. Falling back to 'narrative/foreboding'.`);
+    Console.warning(`Invalid mood: ${normalizedMood}. Falling back to 'narrative/foreboding'.`);
     return 'narrative/foreboding';
   }
 }
@@ -58,7 +58,7 @@ function validateMood(mood, setting = null) {
 function pickTrack(mood, excludeSrc = "") {
   // Check if the mood exists in our MUSIC_MANIFEST
   if (!MUSIC_MANIFEST[mood]) {
-    console.warn(`No tracks found for mood: ${mood}`);
+    Console.warning(`No tracks found for mood: ${mood}`);
     return "";
   }
   
@@ -81,13 +81,8 @@ function pickTrack(mood, excludeSrc = "") {
   const pick = Math.floor(Math.random() * availableTracks.length);
   const selectedTrack = availableTracks[pick];
   
-  // Log the available tracks for debugging
-  console.log(`[audio] Available tracks for '${mood}':`, tracks);
-  console.log(`[audio] Selected track: ${selectedTrack}`);
-  
   // Make sure the path is correct - prepend 'music/' if needed
   const fullPath = selectedTrack.startsWith('music/') ? selectedTrack : `music/${selectedTrack}`;
-  console.log(`[audio] Full path to audio file: ${fullPath}`);
   
   return fullPath;
 }
@@ -199,7 +194,7 @@ async function playMusic(mood, force = false) {
       return;
     }
     
-    console.log(`[audio] playMusic called with mood: '${mood}'`);
+    // Mood validation handled by GameConsole
     
     // Special case for Meltdown mode
     if (mood === "Meltdown") {
@@ -212,13 +207,13 @@ async function playMusic(mood, force = false) {
     // Validate the mood
     const validatedMood = validateMood(mood);
     if (validatedMood !== mood) {
-      console.log(`[audio] Mood normalized from '${mood}' to '${validatedMood}'`);
+      Console.info(`Mood normalized from '${mood}' to '${validatedMood}'`);
       mood = validatedMood;
     }
     
     // Check for no-op conditions
     if (!mood) {
-      console.warn('[audio] No valid mood provided');
+      Console.warning('[audio] No valid mood provided');
       return;
     }
     
@@ -236,7 +231,7 @@ async function playMusic(mood, force = false) {
       return;
     }
     
-    console.log(`[audio] Selected track: ${nextSrc}`);
+    // Track selection logged internally
     
     // Set up the next track on the idle audio element
     state.idleAudio.src = nextSrc;
@@ -247,7 +242,7 @@ async function playMusic(mood, force = false) {
       await state.idleAudio.play();
     showTrackToast(nextSrc);
     updateMediaSession(nextSrc);
-      console.log(`[audio] Successfully started playing: ${nextSrc}`);
+      // Success logged internally
     } catch (error) {
       console.error(`[audio] Failed to play audio:`, error);
       return;
@@ -278,6 +273,7 @@ function stopAllAudio() {
   state.idleAudio.src = "";
   
   console.log('[audio] All audio stopped');
-
-  
 }
+
+// Export MUSIC_MANIFEST for other modules
+export { MUSIC_MANIFEST };

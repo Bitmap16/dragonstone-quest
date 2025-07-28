@@ -2,6 +2,8 @@
 // Uses a sliding window of past settings and dialogue to determine appropriate scene changes
 
 import { askAI } from './storyAI.js';
+import { Console } from '../gameController.js';
+import { MUSIC_MANIFEST } from '../audio.js';
 
 
 // This will be populated with available settings when the module loads
@@ -14,17 +16,17 @@ async function loadAvailableOptions() {
     // Get settings from settings module
     if (window.settings) {
       AVAILABLE_SETTINGS = await window.settings.getAvailableSettings();
-      console.log('[settingAI] Loaded settings:', AVAILABLE_SETTINGS);
+      Console.info('Loaded settings', AVAILABLE_SETTINGS);
     }
     
     // Get moods from audio module if available
     if (window.audio) {
       await window.audio.loadMusicManifest();
       AVAILABLE_MOODS = Object.keys(MUSIC_MANIFEST || {});
-      console.log('[settingAI] Loaded moods:', AVAILABLE_MOODS);
+      Console.info('Loaded moods', AVAILABLE_MOODS);
     }
   } catch (error) {
-    console.error('[settingAI] Failed to load available options:', error);
+    Console.error('Failed to load available options', error);
   }
 }
 
@@ -33,33 +35,28 @@ loadAvailableOptions().catch(console.error);
 
 function getSettingPrompt() {
   return `You are the Setting AI for a text-only fantasy RPG.
-Your task is to select both the background *setting* and *mood* for the upcoming scene.
+Your task is to figure out the location in the current scene. If unsure, avoid changing scenes too often.
 
 Return ONLY valid JSON (no markdown, no comments):
 {
-  "setting": "<location>",
-  "mood": "<mood-directory>"
+  "setting": "<location>"
 }
 
 Example:
 
 {
-  "setting": "autumn_glade",
-  "mood": "narrative/foreboding"
+  "setting": "autumn_glade"
 }
 
-Available Settings (choose exactly one of these for "setting"; use hyphens for multi-word settings like 'adventure-begins'):
+Available Settings
+
+YOU MUST CHOOSE ONE OF THE FOLLOWING SETTINGS:
 ${AVAILABLE_SETTINGS.map(s => `- ${s}`).join('\n')}
 
-Available Moods (choose exactly one of these for "mood"):
-${AVAILABLE_MOODS.map(m => `- ${m}`).join('\n')}
-
 Guidelines:
-1. The setting must be one of the available settings listed above.
-2. The mood must be one of the available moods listed above.
-3. The mood should match the emotional tone of the scene.
-4. Base your choices on the narrative context and any provided dialogue.
-5. Keep output to a single line of JSON.`;
+1. Base your choice on the narrative context and any provided dialogue.
+2. Avoid picking a setting that's being described and not the current location of the characters.
+3. Keep output to a single line of JSON.`;
 }
 
 /**
@@ -85,7 +82,7 @@ async function determineSetting(params, attempt = 0) {
   // Destructure with defaults
   const {
     availableSettings = [],
-    availableMoods = [],
+    
     pastSettings = [],
     pastDialogue = ""
   } = params || {};
@@ -98,10 +95,7 @@ async function determineSetting(params, attempt = 0) {
       console.warn('[settingAI] No settings available in manifest');
     }
     
-    // If we don't have any moods yet, log a warning but continue
-    if (AVAILABLE_MOODS.length === 0) {
-      console.warn('[settingAI] No moods available in manifest');
-    }
+    
     
     const messages = [
       { role: 'system', content: getSettingPrompt() },
@@ -118,8 +112,8 @@ ${pastDialogue}` }
     const cleaned = raw.replace(/```(?:json)?\s*([\s\S]*?)```/i, "$1").trim();
     const result = JSON.parse(cleaned);
     
-    if (!result?.setting || !result?.mood) {
-      throw new Error('Invalid response format: missing setting or mood field');
+    if (!result?.setting) {
+      throw new Error('Invalid response format: missing setting field');
     }
     
     // Validate that the returned setting and mood are in our available lists
@@ -127,42 +121,89 @@ ${pastDialogue}` }
     if (result.setting) {
         result.setting = result.setting.toLowerCase();
         const isValidSetting = AVAILABLE_SETTINGS.some(s => s.toLowerCase() === result.setting);
-        console.log(`[settingAI] Setting is valid:`, isValidSetting);
+        // Setting validation handled internally
         if (!isValidSetting) {
-            console.warn(`[settingAI] Invalid setting returned: '${result.setting}'. Current background will be kept.`);
+            Console.warning(`[settingAI] Invalid setting returned: '${result.setting}'. Current background will be kept.`);
             result.setting = null; // Set to null to indicate no change
         }
     }
 
-    if (result.mood) {
-        result.mood = result.mood.toLowerCase();
-        const isValidMood = AVAILABLE_MOODS.some(m => m.toLowerCase() === result.mood);
-        console.log(`[settingAI] Mood is valid:`, isValidMood);
-        if (!isValidMood) {
-            console.warn(`[settingAI] Invalid mood returned: '${result.mood}'. Falling back to 'narrative/foreboding'.`);
-            result.mood = 'narrative/foreboding';
-        }
-    }
     
-    console.log(`%c[settingAI] %c${result.setting} %c${result.mood}`, 'color: #9c27b0; font-weight: bold', 'color: #4caf50', 'color: #2196f3');
-    return { setting: result.setting, mood: result.mood };
+    
+    // Setting selection handled internally
+    return { setting: result.setting };
   } catch (err) {
     if (attempt < (CONFIG?.MAX_REPAIR ?? 1)) {
-      console.warn('[settingAI] parse failed, retrying...', err);
+      Console.warning('[settingAI] parse failed, retrying...', err);
       return determineSetting.call(this, params, attempt + 1);
     }
-    console.error('[settingAI] failed after retries:', err);
+    Console.error('[settingAI] failed after retries:', err);
     return null;
   }
 }
 
-// Create a bound version of determineSetting that maintains access to the module's scope
-const boundDetermineSetting = determineSetting.bind({
-  askAI,
-  // Add other module-level functions/variables that might be needed
-  CONFIG: window.CONFIG || {}
-});
+// ───── Mood helper prompt ───────────────────────────────
+function getMoodPrompt() {
+  return `You are the Mood AI for a text-only fantasy RPG.
+Your task is to select the background *music mood* for the upcoming scene.
 
-// Expose the bound helper
-window.settingAI = { determineSetting: boundDetermineSetting };
+Return ONLY valid JSON (no markdown, no comments):
+{
+  "mood": "<mood-directory>"
+}
+
+Example:
+{
+  "mood": "narrative/foreboding"
+}
+
+Available Moods (choose exactly one of these for "mood"):
+${AVAILABLE_MOODS.map(m => `- ${m}`).join('\n')}
+
+Guidelines:
+1. The mood must be one of the available moods listed above.
+2. Match the emotional tone of the scene.
+3. Keep output to a single line of JSON.`;
+}
+
+// ───── Mood selector function ───────────────────────────
+async function determineMood(params, attempt = 0) {
+  const { pastDialogue = "" } = params || {};
+  try {
+    await loadAvailableOptions();
+    if (AVAILABLE_MOODS.length === 0) {
+      Console.warning('[settingAI] No moods available');
+    }
+    const messages = [
+      { role: 'system', content: getMoodPrompt() },
+      { role: 'user', content: `Recent dialogue:\n${pastDialogue}` }
+    ];
+    const raw = await askAI(messages, { model: CONFIG.SETTING_MODEL });
+    const cleaned = raw.replace(/```(?:json)?\s*([\s\S]*?)```/i, "$1").trim();
+    const result = JSON.parse(cleaned);
+    if (!result?.mood) throw new Error('Invalid response: missing mood');
+    result.mood = result.mood.toLowerCase();
+    const valid = AVAILABLE_MOODS.some(m => m.toLowerCase() === result.mood);
+    if (!valid) {
+      Console.warning(`[settingAI] Invalid mood '${result.mood}', defaulting to narrative/foreboding`);
+      result.mood = 'narrative/foreboding';
+    }
+    // Mood selection handled internally
+    return { mood: result.mood };
+  } catch (err) {
+    if (attempt < (CONFIG?.MAX_REPAIR ?? 1)) {
+      Console.warning('[settingAI] mood parse failed, retrying...', err);
+      return determineMood(params, attempt + 1);
+    }
+    Console.error('[settingAI] determineMood failed:', err);
+    return null;
+  }
+}
+
+// Bind helpers to preserve scope
+const boundDetermineSetting = determineSetting.bind({ askAI, CONFIG: window.CONFIG || {} });
+const boundDetermineMood    = determineMood.bind({ askAI, CONFIG: window.CONFIG || {} });
+
+// Expose
+window.settingAI = { determineSetting: boundDetermineSetting, determineMood: boundDetermineMood };
 

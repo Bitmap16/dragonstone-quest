@@ -57,6 +57,7 @@ export const dom = {
   settingsModal: $("settings-modal"),
   setVolume: $("set-volume"),
   setTextSpeed: $("set-textspeed"),
+  setCrass: $("set-crass"),
   valVolume: $("val-volume"),
   valTextSpeed: $("val-textspeed"),
 
@@ -71,6 +72,15 @@ function isOverlayActive() {
     (dom.startOL && dom.startOL.style.display !== "none") ||
     (dom.endOL && !dom.endOL.classList.contains("hidden")) ||
     (dom.thinking && dom.thinking.classList.contains("visible"))
+  );
+}
+
+// Check if dialogue is currently being rendered (typing animation active)
+function isDialogueActive() {
+  // Only block settings changes during actual typing animations, not thinking/loading
+  return (
+    (dom.dlgText && dom.dlgText._currentAnimation) ||
+    (dom.narration && dom.narration._currentAnimation)
   );
 }
 
@@ -280,6 +290,9 @@ export function showYou(text) {
   setNameColor("You");
   hideSprite();
   dom.dlgText.textContent = text;
+  dom.inputBar.style.display = "none";
+  dom.inputBar.classList.remove("show");
+  dom.actionBtns.classList.add("hidden");
 }
 
 export function showThem(name, text) {
@@ -291,6 +304,9 @@ export function showThem(name, text) {
   dom.spkName.textContent = name;
   setNameColor(name);
   // showSprite() is handled separately
+  dom.inputBar.style.display = "none";
+  dom.inputBar.classList.remove("show");
+  dom.actionBtns.classList.add("hidden");
   return typer(text, dom.dlgText);
 }
 
@@ -302,6 +318,9 @@ export function showNarration(text) {
   dom.dialogue.classList.add("hidden");
   dom.narration.classList.remove("hidden");
   hideSprite();
+  dom.inputBar.style.display = "none";
+  dom.inputBar.classList.remove("show");
+  dom.actionBtns.classList.add("hidden");
   return typer(text, dom.narration);
 }
 
@@ -317,43 +336,102 @@ export const typer = (txt, el, speed = CONFIG.TEXT_SPEED, boost = CONFIG.TEXT_BO
     el.textContent = "";
     let i = 0;
     let last = performance.now();
+    // Capture speed and boost at start to prevent mid-animation changes from breaking things
+    const fixedSpeed = speed;
+    const fixedBoost = boost;
+    let animationId = null;
+    
     const step = now => {
-      if (now - last >= speed) {
-        const charsPerFrame = (CONFIG.FAST_FORWARD_HOLD && isMouseDown) ? Math.ceil(boost / 2) : 1;
+      if (now - last >= fixedSpeed) {
+        const charsPerFrame = (CONFIG.FAST_FORWARD_HOLD && isMouseDown) ? Math.ceil(fixedBoost / 2) : 1;
         el.textContent += txt.substring(i, i + charsPerFrame);
         i += charsPerFrame;
         last = now;
       }
       if (i < txt.length) {
-        requestAnimationFrame(step);
+        animationId = requestAnimationFrame(step);
+        el._currentAnimation = animationId; // Update current animation ID
       } else {
         el.textContent = txt; // Ensure the full text is displayed
+        el._currentAnimation = null; // Clear animation tracking
         resolve();
       }
     };
-    requestAnimationFrame(step);
+    
+    animationId = requestAnimationFrame(step);
+    
+    // Store initial animation ID for tracking
+    el._currentAnimation = animationId;
   });
 };
 
+// Global reference to current waitClick resolver for cleanup
+let currentWaitClickResolver = null;
+let currentWaitClickCleanup = null;
+
 // Await user interaction (click or Enter key) to continue
 export function waitClick() {
+  // Clean up any existing waitClick first
+  if (currentWaitClickCleanup) {
+    currentWaitClickCleanup();
+    currentWaitClickCleanup = null;
+  }
+  
   return new Promise(res => {
+    currentWaitClickResolver = res;
+    
     function finish(e) {
-      if (isOverlayActive()) return;
       if (e.type === "keydown" && e.key !== "Enter") return;
+      
+      // Only advance dialogue if clicking on valid areas
+      if (e.type === "mousedown") {
+        const target = e.target;
+        const clickableAreas = [
+          '#background',
+          '#playfield', 
+          '#narration',
+          '#dialogue',
+          '#characters'
+        ];
+        
+        // Check if click is on a valid dialogue-advancing area
+        const isValidArea = clickableAreas.some(selector => {
+          const element = document.querySelector(selector);
+          return element && (target === element || element.contains(target));
+        });
+        
+        // Don't advance if clicking on UI panels, buttons, sidebar, etc.
+        const isUIElement = target.closest('#sidebar, #top-icons, #settings-modal, #save-dd, button, input, .icon-btn, .btn');
+        
+        if (!isValidArea || isUIElement) {
+          // Re-add listeners for next click instead of breaking permanently
+          addEventListener("mousedown", finish, { once: true });
+          addEventListener("keydown", finish, { once: true });
+          return; // Don't advance dialogue
+        }
+      }
+      
       cleanup();
+      currentWaitClickResolver = null;
+      currentWaitClickCleanup = null;
       res();
     }
+    
     function cleanup() {
       removeEventListener("mouseup", onRelease);
       removeEventListener("mousedown", finish);
       removeEventListener("keydown", finish);
     }
+    
     const onRelease = () => {
       removeEventListener("mouseup", onRelease);
       addEventListener("mousedown", finish, { once: true });
       addEventListener("keydown", finish, { once: true });
     };
+    
+    // Store cleanup function globally so settings changes can reset if needed
+    currentWaitClickCleanup = cleanup;
+    
     if (isMouseDown) {
       addEventListener("mouseup", onRelease, { once: true });
     } else {
@@ -363,10 +441,26 @@ export function waitClick() {
   });
 }
 
+// Function to restart waitClick if it gets corrupted by settings changes
+export function restartWaitClick() {
+  if (currentWaitClickResolver && currentWaitClickCleanup) {
+    currentWaitClickCleanup();
+    // Re-trigger waitClick
+    setTimeout(() => {
+      if (currentWaitClickResolver) {
+        waitClick().then(currentWaitClickResolver);
+      }
+    }, 10);
+  }
+}
+
 // Show or hide the global "Thinking..." overlay
 export function thinking(on) {
-  dom.thinking.style.display = on ? "flex" : "none";
+  // Remove/add hidden class instead of setting display directly
+  // The CSS handles the display with opacity transitions
+  dom.thinking.classList.toggle("hidden", !on);
   dom.thinking.classList.toggle("visible", on);
+  
   // Hide both input forms when thinking
   if (on) {
     dom.inputBar.style.display = "none";
@@ -515,6 +609,23 @@ function updateFixedParty() {
     btn.className = 'icon-btn';
     btn.title = 'Toggle Fullscreen';
     btn.innerHTML = '⛶'; // simple icon glyph
+    
+    // Create a dedicated container for mobile fullscreen button
+    let mobileContainer = document.getElementById('mobile-fullscreen-container');
+    if (!mobileContainer) {
+      mobileContainer = document.createElement('div');
+      mobileContainer.id = 'mobile-fullscreen-container';
+      mobileContainer.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: var(--z-overlay, 200);
+        display: none;
+      `;
+      document.body.appendChild(mobileContainer);
+    }
+    
+    // Initially add to top-icons for desktop
     document.getElementById('top-icons')?.appendChild(btn);
     dom.fullscreenBtn = btn;
   }
@@ -525,36 +636,75 @@ function updateFixedParty() {
       document.documentElement.requestFullscreen().catch(console.warn);
     }
   });
+  
+  // Store reference for fullscreen change handler
+  window.updateControlPositions = () => {
+    const mobile = window.innerWidth <= CONFIG.MOBILE_BREAKPOINT;
+    if (mobile && dom.sidebar.classList.contains('collapsed')) {
+      // This will be set by the setupSidebarToggle function
+      if (window.moveControlsRef) {
+        window.moveControlsRef(true);
+      }
+    }
+  };
+  
+  // Listen for fullscreen changes to reposition button on mobile
+  document.addEventListener('fullscreenchange', window.updateControlPositions);
 })();
 
 // Sidebar toggle handler
 (function setupSidebarToggle(){
   const moveControls = (toSidebar) => {
-    const host = toSidebar ? dom.sidebar : document.getElementById('top-icons');
-    if (!host) return;
+    const topIcons = document.getElementById('top-icons');
+    const mobileContainer = document.getElementById('mobile-fullscreen-container');
+    if (!topIcons) return;
+    
     let ctlWrap = document.getElementById('sidebar-controls');
-    if (toSidebar) {
-      if (!ctlWrap) {
-        ctlWrap = document.createElement('div');
-        ctlWrap.id = 'sidebar-controls';
-        dom.sidebar.appendChild(ctlWrap);
+    const mobile = window.innerWidth <= CONFIG.MOBILE_BREAKPOINT;
+    const inFullscreen = !!document.fullscreenElement;
+    
+    // Always keep non-fullscreen buttons in sidebar for cleaner look
+    if (!ctlWrap) {
+      ctlWrap = document.createElement('div');
+      ctlWrap.id = 'sidebar-controls';
+      dom.sidebar.appendChild(ctlWrap);
+    }
+    
+    // Always move these buttons to sidebar
+    ctlWrap.appendChild(dom.textToggle);
+    ctlWrap.appendChild(dom.saveIcon);
+    ctlWrap.appendChild(dom.settingsIcon);
+    
+    // Handle fullscreen button placement
+    if (mobile) {
+      if (inFullscreen) {
+        // In fullscreen: move to sidebar
+        ctlWrap.appendChild(dom.fullscreenBtn);
+        if (mobileContainer) mobileContainer.style.display = 'none';
+      } else {
+        // Not in fullscreen: show in dedicated mobile container
+        if (mobileContainer) {
+          mobileContainer.appendChild(dom.fullscreenBtn);
+          mobileContainer.style.display = 'block';
+        }
       }
-      ctlWrap.appendChild(dom.textToggle);
-      ctlWrap.appendChild(dom.saveIcon);
-      ctlWrap.appendChild(dom.settingsIcon);
-      ctlWrap.appendChild(dom.fullscreenBtn);
-    } else if (ctlWrap) {
-      // Move back to top-icons host in desktop view
-      host.appendChild(dom.textToggle);
-      host.appendChild(dom.saveIcon);
-      host.appendChild(dom.settingsIcon);
-      host.appendChild(dom.fullscreenBtn);
-      ctlWrap.remove();
+    } else {
+      // Desktop: fullscreen button goes to sidebar when sidebar is open, top-icons when closed
+      if (toSidebar) {
+        ctlWrap.appendChild(dom.fullscreenBtn);
+        if (mobileContainer) mobileContainer.style.display = 'none';
+      } else {
+        topIcons.appendChild(dom.fullscreenBtn);
+        if (mobileContainer) mobileContainer.style.display = 'none';
+      }
     }
   };
 
+  // Expose moveControls for fullscreen change handler
+  window.moveControlsRef = moveControls;
+
   const handleViewport = () => {
-    const mobile = window.innerWidth <= 720;
+    const mobile = window.innerWidth <= CONFIG.MOBILE_BREAKPOINT;
     if (mobile) {
       dom.sidebar.classList.add("collapsed");
       moveControls(true);
@@ -601,34 +751,62 @@ function updateFixedParty() {
 (function setupSettingsPanel() {
   const syncLabels = () => {
     dom.valVolume.textContent = `${Math.round(state.userVolume * 100)} %`;
-    dom.valTextSpeed.textContent = `${CONFIG.TEXT_SPEED} ms`;
+    // Convert ms to speed (higher = faster)
+    const speedValue = Math.round(((200 - CONFIG.TEXT_SPEED) / 195) * 100);
+    dom.valTextSpeed.textContent = `${speedValue}%`;
   };
-  // Initialize sliders and labels
+  // Initialize sliders, checkbox, and labels
   dom.setVolume.value = Math.round(state.userVolume * 100);
-  dom.setTextSpeed.value = CONFIG.TEXT_SPEED;
+  // Convert TEXT_SPEED (ms) to slider value (higher = faster)
+  dom.setTextSpeed.value = Math.round(((200 - CONFIG.TEXT_SPEED) / 195) * 100);
+  dom.setCrass.checked = CONFIG.CRASS_DIALOGUE;
   syncLabels();
   // Open/close settings modal
   dom.settingsIcon.addEventListener("click", e => {
+    e.preventDefault();
     e.stopPropagation();
     dom.settingsModal.classList.toggle("hidden");
   });
-  addEventListener("click", e => {
-    if (
-      !dom.settingsModal.classList.contains("hidden") &&
-      !dom.settingsModal.contains(e.target) &&
-      e.target !== dom.settingsIcon
-    ) {
+  
+  // Close modal when clicking on the overlay background (not its children)
+  dom.settingsModal.addEventListener("click", e => {
+    // Only close if the click target is the modal overlay itself, not its children
+    if (e.target === dom.settingsModal) {
       dom.settingsModal.classList.add("hidden");
     }
   });
   // Live slider bindings
   dom.setVolume.oninput = e => {
     state.userVolume = +e.target.value / 100;
-    applyVol();
+    window.audio.applyVol();
     syncLabels();
   };
   dom.setTextSpeed.oninput = e => {
-    CONFIG.TEXT_SPEED = Math.max(5, e.target.valueAsNumber);
+    // Prevent changes during active dialogue to avoid freezing
+    if (isDialogueActive()) {
+      // Reset to current slider value (converted from TEXT_SPEED)
+      e.target.value = Math.round(((200 - CONFIG.TEXT_SPEED) / 195) * 100);
+      return;
+    }
+    
+    const sliderValue = parseInt(e.target.value) || 50; // Default to 50% if parsing fails
+    // Convert slider value (0-100, higher = faster) to ms delay (200-5, lower = faster)
+    const newSpeed = Math.round(200 - (sliderValue / 100) * 195);
+    CONFIG.TEXT_SPEED = Math.max(5, Math.min(200, newSpeed)); // Clamp between 5-200ms
     syncLabels();
+    // Restart waitClick to prevent click-to-advance breaking
+    restartWaitClick();
+  };
+  // Crass dialogue checkbox binding
+  dom.setCrass.onchange = e => {
+    // Prevent changes during active dialogue to avoid freezing
+    if (isDialogueActive()) {
+      e.target.checked = CONFIG.CRASS_DIALOGUE; // Reset to current value
+      return;
+    }
+    
+    CONFIG.CRASS_DIALOGUE = e.target.checked;
+    // Restart waitClick to prevent click-to-advance breaking
+    restartWaitClick();
   };
 })();

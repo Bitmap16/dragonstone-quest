@@ -444,12 +444,20 @@ export function waitClick() {
 // Function to restart waitClick if it gets corrupted by settings changes
 export function restartWaitClick() {
   if (currentWaitClickResolver && currentWaitClickCleanup) {
+    // Store the original resolver before cleanup
+    const originalResolver = currentWaitClickResolver;
     currentWaitClickCleanup();
-    // Re-trigger waitClick
+    
+    // Reset the global state
+    currentWaitClickResolver = null;
+    currentWaitClickCleanup = null;
+    
+    // Re-trigger waitClick with proper Promise chaining
     setTimeout(() => {
-      if (currentWaitClickResolver) {
-        waitClick().then(currentWaitClickResolver);
-      }
+      waitClick().then(() => {
+        // Resolve the original Promise to continue dialogue flow
+        originalResolver();
+      });
     }, 10);
   }
 }
@@ -492,6 +500,7 @@ export function updateInputDisplay() {
 
   // ── Inventory Use Buttons ─────────────────────
   // Show or hide inventory 'Use' buttons in sync with action availability
+  // Only visible during user input/selection phase, hidden during loading and dialogue
   dom.invBox?.querySelectorAll('.use-btn').forEach(btn => {
     btn.disabled = !hasActions;
     btn.classList.toggle('hidden', !hasActions);

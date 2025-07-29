@@ -1,4 +1,4 @@
-import { SYS, askAI, safeParse, maybeInjectEvent } from './prompts/storyAI.js';
+import { getSysPrompt, askAI, safeParse, maybeInjectEvent } from './prompts/storyAI.js';
 import { summarizerAI } from './prompts/scribeAI.js';
 import { getPlayerActions } from './prompts/actionAI.js';
 import {
@@ -136,7 +136,7 @@ async function chat(inputText) {
 
   // 3. Build the prompt messages for the AI
   const messages = [
-    { role: "system", content: SYS },
+    { role: "system", content: getSysPrompt() },
     { role: "system", content: "Current notes:" + JSON.stringify(state.notes) },
     ...state.history
   ];
@@ -179,7 +179,7 @@ async function handleAI(rawOutput, attempt = 0, skipSetting = false) {
     
     // Get a fresh response with a more specific prompt
     const repairMsgs = [
-      { role: "system", content: SYS },
+      { role: "system", content: getSysPrompt() },
       { role: "system", content: "IMPORTANT: You MUST respond with valid JSON containing at minimum a 'dialogue' array with speaker/text objects." },
       ...state.history.slice(-CONFIG.MAX_LOGS)
     ];
@@ -308,13 +308,6 @@ async function handleAI(rawOutput, attempt = 0, skipSetting = false) {
     await waitClick();
   }
   
-  // Show action buttons after dialogue is complete
-  if (actions.length > 0 && !data.gameOver) {
-    showActionButtons(actions, (action) => {
-      chat(action.replace(/^["']|["']$/g, ''));
-    });
-  }
-  
   thinking(false); // Hide thinking overlay
 
   // Restore UI icons
@@ -328,9 +321,6 @@ async function handleAI(rawOutput, attempt = 0, skipSetting = false) {
       dom.userIn.focus();
     } else if (actions.length > 0) {
       showActionButtons(actions, chat);
-    updateInputDisplay();
-  // Restore appropriate input/action UI
-  updateInputDisplay();
     } else {
       // Fallback in case no actions were generated
       console.warn('No actions available, showing default input');
@@ -374,7 +364,7 @@ async function kickoff() {
 
     // Build initial prompt for story AI
     const initialMessages = [
-      { role: 'system', content: SYS },
+      { role: 'system', content: getSysPrompt() },
       
       { role: 'system', content: 'Starting items: ' + JSON.stringify(CONFIG.START_ITEMS) },
       { role: 'user', content: CONFIG.INITIAL_PROMPT },

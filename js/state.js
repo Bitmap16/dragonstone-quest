@@ -8,7 +8,7 @@ const state = {
   party: { You: "Health:100", Nyx: "Health:100", Kael: "Health:100" },
   items: JSON.parse(JSON.stringify(CONFIG.START_ITEMS)), // deep copy
 
-  // Turn history and current mood
+ // Turn history and current mood
   history: [],
   currentMood: "",
 

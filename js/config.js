@@ -64,6 +64,7 @@ const CONFIG = {
     "A new character wants to join your party.",
     "Weather shifts dramatically, affecting travel.",
     "A hidden trap is triggered unexpectedly.",
+    "A character (other than the player) meets an untimely demise.",
     "A magical anomaly disrupts your progress."
   ]
 };
